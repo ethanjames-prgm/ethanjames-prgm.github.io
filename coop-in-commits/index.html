@@ -83,7 +83,9 @@
   .kpi.hero { grid-column: span 2; }
   @media (max-width: 1000px) { .kpis { grid-template-columns: repeat(3, 1fr); } .kpi.hero { grid-column: span 1; } }
   @media (max-width: 480px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
-  .kpi.hero { background: linear-gradient(135deg, var(--surface-1), color-mix(in srgb, var(--accent) 9%, var(--surface-1))); }
+  .kpi.hero { background: var(--surface-1); background: linear-gradient(135deg, var(--surface-1), color-mix(in srgb, var(--accent) 9%, var(--surface-1))); }
+  .diag { margin-top: 24px; font: 400 12px/1.6 var(--mono); color: var(--div-neg); }
+  .diag span { display: block; }
   .kpi .lab { font: 500 11px/1.4 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
   .kpi .val { font-family: var(--mono); font-size: 28px; font-weight: 500; margin-top: 4px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
   .kpi.hero .val { font-size: 56px; line-height: 1.02; letter-spacing: -0.03em; }
@@ -111,7 +113,7 @@
   .mark { transition: transform 0.12s ease, opacity 0.25s ease; transform-box: fill-box; transform-origin: center; }
   body, .card, .kpi, .theme, .tip, .toc a { transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease; }
   .toc { position: sticky; top: 0; z-index: 5; display: flex; gap: 6px; justify-content: safe center; overflow-x: auto; padding: 10px 0; margin: 18px 0 0;
-    background: color-mix(in srgb, var(--page) 84%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); scrollbar-width: none; }
+    background: var(--page); background: color-mix(in srgb, var(--page) 84%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); scrollbar-width: none; }
   .toc::-webkit-scrollbar { display: none; }
   .toc a { flex: none; font-size: 12.5px; color: var(--ink-2); text-decoration: none; padding: 6px 11px; border-radius: 999px; border: 1px solid transparent; }
   .toc a span { font: 500 10.5px/1 var(--mono); letter-spacing: 0.08em; color: var(--ink-3); margin-right: 7px; }
@@ -306,30 +308,44 @@ function hideTip() { tip.style.display = 'none'; }
 const MOTION = matchMedia('(prefers-reduced-motion: no-preference)').matches;
 const revealed = new Set();
 let ready = !(document.fonts && document.fonts.ready);
-function reveal(svg, nodes, delayOf) {
-  if (!ready || revealed.has(svg.id) || !MOTION || !('IntersectionObserver' in window)) return;
-  nodes.forEach(o => { o.style.opacity = 0; });
+function whenInView(target, fn, fallbackMs) {
+  let done = false;
+  const go = () => { if (done) return; done = true; fn(); };
+  if (!('IntersectionObserver' in window)) { go(); return; }
   const io = new IntersectionObserver(es => {
-    if (!es.some(e => e.isIntersecting)) return;
-    io.disconnect(); revealed.add(svg.id);
+    if (es.some(e => e.isIntersecting)) { io.disconnect(); go(); }
+  }, { rootMargin: '-20% 0px -20% 0px', threshold: 0 });
+  io.observe(target);
+  setTimeout(() => { io.disconnect(); go(); }, fallbackMs);
+}
+function reveal(svg, nodes, delayOf) {
+  if (!ready || revealed.has(svg.id) || !MOTION) return;
+  revealed.add(svg.id);
+  nodes.forEach(o => { o.style.opacity = 0; });
+  whenInView(svg, () => {
     nodes.forEach(o => { o.style.transition = 'opacity 0.4s'; o.style.transitionDelay = delayOf(o) + 'ms'; o.style.opacity = 1; });
     setTimeout(() => nodes.forEach(o => { o.style.transition = ''; o.style.transitionDelay = ''; }), 2600);
-  }, { threshold: 0.4 });
-  io.observe(svg);
+  }, 8000);
 }
 let counted = false;
 function countUp() {
-  if (counted || !MOTION) return; counted = true;
-  document.querySelectorAll('.kpi .val').forEach(v => {
-    const m = v.textContent.match(/^([+\u2212-]?)([\d,]+)$/); if (!m) return;
-    const target = +m[2].replace(/,/g, ''), t0 = performance.now(), dur = 1100;
-    const step = now => {
-      const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3);
-      v.textContent = m[1] + fmt(Math.round(target * e));
-      if (p < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  });
+  if (counted || !MOTION) return;
+  const start = () => {
+    if (counted) return; counted = true;
+    document.querySelectorAll('.kpi .val').forEach(v => {
+      const m = v.textContent.match(/^([+\u2212-]?)([\d,]+)$/); if (!m) return;
+      const target = +m[2].replace(/,/g, ''), t0 = performance.now(), dur = 1100;
+      const step = now => {
+        const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+        v.textContent = m[1] + fmt(Math.round(target * e));
+        if (p < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    });
+  };
+  const box = document.getElementById('kpis');
+  if (!box) { start(); return; }
+  whenInView(box, () => requestAnimationFrame(() => requestAnimationFrame(start)), 4000);
 }
 function toc() {
   const nav = document.getElementById('toc'); if (!nav) return;
@@ -825,7 +841,20 @@ function foot() {
     '</p><p>Colors were chosen to stay distinguishable for readers with color-vision deficiency, in both light and dark mode.</p>';
 }
 
-function drawAll() { spark(); kpis(); legend(); timeline(); calendar(); ledger(); classes(); punch(); sizesChart(); tickets(); foot(); }
+function diag(where, err) {
+  console.error(where, err);
+  let d = document.getElementById('diag');
+  if (!d) { d = document.createElement('p'); d.id = 'diag'; d.className = 'diag'; document.querySelector('.wrap').appendChild(d); }
+  const line = document.createElement('span');
+  line.textContent = `${where}: ${err && err.message ? err.message : err}`;
+  d.appendChild(line);
+}
+window.addEventListener('error', ev => diag('script', ev.error || ev.message));
+function drawAll() {
+  for (const f of [spark, kpis, legend, timeline, calendar, ledger, classes, punch, sizesChart, tickets, foot]) {
+    try { f(); } catch (err) { diag(f.name, err); }
+  }
+}
 
 const THEME_KEY = 'coop-in-commits-theme';
 const THEME_LABEL = { system: 'System theme', light: 'Light theme', dark: 'Dark theme' };
@@ -842,7 +871,9 @@ document.getElementById('theme').addEventListener('click', () => {
   applyTheme(); drawAll();
 });
 applyTheme();
-drawAll(); table(); toc();
+drawAll();
+try { table(); } catch (err) { diag('table', err); }
+try { toc(); } catch (err) { diag('toc', err); }
 if (ready) countUp(); else document.fonts.ready.then(() => { ready = true; drawAll(); countUp(); });
 document.addEventListener('pointerdown', ev => {
   hideTip();
@@ -859,7 +890,8 @@ const CHART_LABELS = {
   tickets: 'The twelve tickets with the most work commits as horizontal bars segmented by repository.',
 };
 for (const [id, label] of Object.entries(CHART_LABELS)) { const e = document.getElementById(id); if (e) { e.setAttribute('role', 'img'); e.setAttribute('aria-label', label); } }
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', drawAll);
+const mq = matchMedia('(prefers-color-scheme: dark)');
+if (mq.addEventListener) mq.addEventListener('change', drawAll); else if (mq.addListener) mq.addListener(drawAll);
 </script>
 </body>
 </html>
