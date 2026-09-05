@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A Co-op in Commits</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb; --page: #f9f9f7;
+    --ink-1: #0b0b0b; --ink-2: #52514e; --ink-3: #898781;
+    --grid: #e1e0d9; --baseline: #c3c2b7; --ring: rgba(11,11,11,0.10);
+    --s-oceans: #2a78d6; --s-onc: #eb6834; --s-db: #1baf7a; --s-uit: #eda100; --s-wst: #e87ba4;
+    --div-pos: #2a78d6; --div-neg: #e34948; --div-mid: #f0efec;
+    --seq-0: #fcfcfb; --seq-1: #cde2fb; --seq-2: #9ec5f4; --seq-3: #6da7ec; --seq-4: #3987e5; --seq-5: #256abf; --seq-6: #0d366b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --page: #0d0d0d;
+      --ink-1: #ffffff; --ink-2: #c3c2b7; --ink-3: #898781;
+      --grid: #2c2c2a; --baseline: #383835; --ring: rgba(255,255,255,0.10);
+      --s-oceans: #3987e5; --s-onc: #d95926; --s-db: #199e70; --s-uit: #c98500; --s-wst: #d55181;
+      --div-pos: #3987e5; --div-neg: #e66767; --div-mid: #383835;
+      --seq-0: #1a1a19; --seq-1: #104281; --seq-2: #1c5cab; --seq-3: #256abf; --seq-4: #3987e5; --seq-5: #6da7ec; --seq-6: #b7d3f6;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --page: #0d0d0d;
+    --ink-1: #ffffff; --ink-2: #c3c2b7; --ink-3: #898781;
+    --grid: #2c2c2a; --baseline: #383835; --ring: rgba(255,255,255,0.10);
+    --s-oceans: #3987e5; --s-onc: #d95926; --s-db: #199e70; --s-uit: #c98500; --s-wst: #d55181;
+    --div-pos: #3987e5; --div-neg: #e66767; --div-mid: #383835;
+    --seq-0: #1a1a19; --seq-1: #104281; --seq-2: #1c5cab; --seq-3: #256abf; --seq-4: #3987e5; --seq-5: #6da7ec; --seq-6: #b7d3f6;
+  }
+  * { margin: 0; box-sizing: border-box; }
+  body {
+    background: var(--page); color: var(--ink-1);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.45; padding: 48px 20px 80px;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; }
+  .eyebrow { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+  h1 { font-size: 42px; font-weight: 700; letter-spacing: -0.02em; margin: 6px 0 4px; }
+  .sub { color: var(--ink-2); font-size: 15px; max-width: 64ch; }
+  .kpis { display: flex; flex-wrap: wrap; gap: 14px; margin: 30px 0 8px; }
+  .kpi {
+    background: var(--surface-1); border: 1px solid var(--ring); border-radius: 10px;
+    padding: 14px 20px 12px; min-width: 128px; flex: 0 1 auto;
+  }
+  .kpi .lab { font-size: 12px; color: var(--ink-3); }
+  .kpi .val { font-size: 26px; font-weight: 650; margin-top: 2px; }
+  .kpi.hero .val { font-size: 52px; line-height: 1.05; }
+  .kpi .note { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; }
+  section { margin-top: 56px; }
+  h2 { font-size: 21px; font-weight: 650; letter-spacing: -0.01em; }
+  .desc { color: var(--ink-2); font-size: 13.5px; margin: 4px 0 16px; max-width: 78ch; }
+  .card { background: var(--surface-1); border: 1px solid var(--ring); border-radius: 12px; padding: 20px; }
+  .scroll { overflow-x: auto; }
+  .legend { display: flex; flex-wrap: wrap; gap: 16px 22px; align-items: center; margin: 0 0 14px; font-size: 12.5px; color: var(--ink-2); }
+  .legend .it { display: inline-flex; align-items: center; gap: 7px; }
+  svg text { font-family: inherit; }
+  .tip {
+    position: fixed; pointer-events: none; z-index: 10; display: none;
+    background: var(--surface-1); color: var(--ink-1);
+    border: 1px solid var(--ring); border-radius: 8px;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.18);
+    padding: 8px 11px; font-size: 12.5px; max-width: 380px;
+  }
+  .tip .t1 { font-weight: 600; }
+  .tip .t2 { color: var(--ink-2); margin-top: 2px; }
+  details { margin-top: 40px; }
+  summary { cursor: pointer; color: var(--ink-2); font-size: 14px; }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; margin-top: 12px; }
+  th, td { text-align: left; padding: 4px 10px 4px 0; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  th { color: var(--ink-3); font-weight: 600; position: sticky; top: 0; background: var(--page); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .foot { margin-top: 56px; font-size: 12px; color: var(--ink-3); max-width: 88ch; border-top: 1px solid var(--grid); padding-top: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Ocean Networks Canada &middot; co-op work terms 1 + 2 &middot; Jan 27 to Aug 25, 2026</div>
+  <h1>A Co-op in Commits</h1>
+  <p class="sub">Every commit Ethan James authored across two work terms and five repositories:
+  read as storylines, rhythms, and one very large deletion. Built from local git history,
+  deduplicated by hash, single-author verified.</p>
+
+  <div class="kpis" id="kpis"></div>
+
+  <section>
+    <h2>The storylines</h2>
+    <p class="desc">Each dot is one commit, placed on its day, sized by lines changed, shaped and
+    colored by repository. Hollow marks are pull-request merges. The six lanes are the co-op's
+    narrative threads: Term 1 belongs to the Sensor Attributes rewrite, Term 2 to the pages it
+    made possible. The flags along the top are the moments the record remembers.</p>
+    <div class="card">
+      <div class="legend" id="legend"></div>
+      <div class="scroll"><svg id="timeline"></svg></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Every day of the co-op</h2>
+    <p class="desc">Commits per day, Monday to Sunday, across all seven months. The two bottom
+    rows stay empty the whole way: zero weekend commits. The blank weekdays are the five BC statutory holidays
+    plus the occasional day away from the keyboard; hover any to check.</p>
+    <div class="card scroll"><svg id="calendar"></svg></div>
+  </section>
+
+  <section>
+    <h2>Lines in, lines out</h2>
+    <p class="desc">Weekly insertions above the line, deletions below (work commits only). The
+    deepest week is not a bug: it is the legacy Cables page being retired, the largest single
+    change of the whole co-op, and it was a removal.</p>
+    <div class="card scroll"><svg id="ledger"></svg></div>
+  </section>
+
+  <section>
+    <h2>What the lines were made of</h2>
+    <p class="desc">Lines touched per month, split by what kind of code they were (classified by
+    file path and extension). The story of the co-op in one grid: frontend from day one, backend
+    arriving in force by spring, and test code running alongside everything, <b>46 percent of all
+    lines touched across the whole co-op</b>. Database rows are small and mighty: hand-run DDL.</p>
+    <div class="card scroll"><svg id="classes"></svg></div>
+  </section>
+
+  <section>
+    <h2>The shape of a working day</h2>
+    <p class="desc">Commits by hour and weekday. The afternoon spine, with a quiet lunch dip, is
+    consistent across both terms. Weekends are omitted: there is nothing to draw.</p>
+    <div class="card scroll"><svg id="punch"></svg></div>
+  </section>
+
+  <section>
+    <h2>How big is a commit?</h2>
+    <p class="desc">Work commits by total lines changed. Half are 33 lines or smaller; the mean of
+    149 is dragged by a handful of giants. Many small precise changes, a few big arrivals, and the
+    biggest events of all were removals.</p>
+    <div class="card scroll"><svg id="sizes"></svg></div>
+  </section>
+
+  <section>
+    <h2>Where the commits went</h2>
+    <p class="desc">The twelve most-committed tickets of the co-op, segmented by repository. The
+    multi-color bars are the multi-repo verticals: frontend, backend, and in one case the
+    database, moving together under one ticket.</p>
+    <div class="card scroll"><svg id="tickets"></svg></div>
+  </section>
+
+  <details>
+    <summary>Table view: all commits, newest first</summary>
+    <div class="scroll" style="max-height:480px; overflow-y:auto;"><table id="tbl"></table></div>
+  </details>
+
+  <p class="foot" id="foot"></p>
+</div>
+<div class="tip" id="tip"></div>
+
+<script id="data" type="application/json">{"commits":[{"ld":"2026-01-27","d":"2026-01-27T10:45:08-08:00","tk":"DMAS-86384","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":6,"del":1,"lane":"other"},{"ld":"2026-01-27","d":"2026-01-27T21:15:06Z","tk":"DMAS-86384","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-01-30","d":"2026-01-30T11:45:59-08:00","tk":"DMAS-89094","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":3,"del":5,"lane":"other"},{"ld":"2026-01-30","d":"2026-01-30T23:09:58Z","tk":"DMAS-89094","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-02-02","d":"2026-02-02T14:30:34-08:00","tk":"DMAS-89095","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":12,"del":7,"lane":"other"},{"ld":"2026-02-03","d":"2026-02-03T10:20:08-08:00","tk":"DMAS-89095","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":2,"del":5,"lane":"other"},{"ld":"2026-02-04","d":"2026-02-04T18:01:56Z","tk":"DMAS-89095","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-02-06","d":"2026-02-06T12:45:10-08:00","tk":"DMAS-89201","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":5,"del":1,"lane":"other"},{"ld":"2026-02-06","d":"2026-02-06T16:00:47-08:00","tk":"DMAS-86386","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":2,"del":2,"lane":"other"},{"ld":"2026-02-06","d":"2026-02-07T02:13:53Z","tk":"DMAS-89201","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-02-09","d":"2026-02-09T10:50:53-08:00","tk":"DMAS-89100","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":11,"del":1,"lane":"other"},{"ld":"2026-02-09","d":"2026-02-09T14:37:53-08:00","tk":"DMAS-89229","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":1,"del":0,"lane":"other"},{"ld":"2026-02-09","d":"2026-02-09T15:39:25-08:00","tk":"DMAS-89229","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":22,"del":22,"lane":"other"},{"ld":"2026-02-10","d":"2026-02-10T09:35:20-08:00","tk":"DMAS-89237","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":3,"del":0,"lane":"other"},{"ld":"2026-02-10","d":"2026-02-10T09:41:51-08:00","tk":"DMAS-89229","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":1,"del":1,"lane":"other"},{"ld":"2026-02-10","d":"2026-02-10T09:43:55-08:00","tk":"DMAS-89229","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":22,"del":22,"lane":"other"},{"ld":"2026-02-10","d":"2026-02-10T10:24:07-08:00","tk":"DMAS-89100","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":10,"del":0,"lane":"other"},{"ld":"2026-02-10","d":"2026-02-10T11:42:32-08:00","tk":"DMAS-86386","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":9,"del":4,"lane":"other"},{"ld":"2026-02-10","d":"2026-02-10T14:33:43-08:00","tk":"DMAS-89252","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":9,"del":9,"lane":"other"},{"ld":"2026-02-10","d":"2026-02-10T15:32:14-08:00","tk":"DMAS-89253","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":19,"del":0,"lane":"other"},{"ld":"2026-02-10","d":"2026-02-10T19:59:55Z","tk":"DMAS-89100","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-02-11","d":"2026-02-11T12:19:40-08:00","tk":"DMAS-89262","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":34,"del":4,"lane":"other"},{"ld":"2026-02-11","d":"2026-02-11T16:24:21-08:00","tk":"DMAS-89268","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":1,"del":1,"lane":"other"},{"ld":"2026-02-11","d":"2026-02-11T18:31:39Z","tk":"DMAS-86386","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-02-11","d":"2026-02-11T22:49:38Z","tk":"DMAS-89229","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-02-12","d":"2026-02-12T20:16:42Z","tk":"DMAS-89237","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-02-13","d":"2026-02-13T17:08:06Z","tk":"DMAS-89262","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-02-13","d":"2026-02-13T22:45:28Z","tk":"DMAS-89268","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-02-17","d":"2026-02-17T14:39:54-08:00","tk":"DMAS-89264","repo":"onc","pr":false,"stash":false,"f":1,"ins":10,"del":2,"lane":"other"},{"ld":"2026-02-17","d":"2026-02-17T14:39:54-08:00","tk":"DMAS-89264","repo":"onc","pr":false,"stash":false,"f":1,"ins":10,"del":2,"lane":"other"},{"ld":"2026-02-17","d":"2026-02-17T15:25:56-08:00","tk":"DMAS-89264","repo":"onc","pr":false,"stash":false,"f":1,"ins":1,"del":3,"lane":"other"},{"ld":"2026-02-17","d":"2026-02-17T15:25:56-08:00","tk":"DMAS-89264","repo":"onc","pr":false,"stash":false,"f":1,"ins":1,"del":3,"lane":"other"},{"ld":"2026-02-17","d":"2026-02-17T15:29:08-08:00","tk":"DMAS-89308","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":2,"del":2,"lane":"other"},{"ld":"2026-02-18","d":"2026-02-18T14:58:33-08:00","tk":"DMAS-89317","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":7,"del":0,"lane":"other"},{"ld":"2026-02-18","d":"2026-02-18T16:49:12Z","tk":"DMAS-89308","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-02-18","d":"2026-02-18T18:40:22Z","tk":"DMAS-89253","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-02-19","d":"2026-02-19T09:41:18-08:00","tk":"DMAS-89317","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":2,"del":1,"lane":"other"},{"ld":"2026-02-19","d":"2026-02-19T14:30:19-08:00","tk":"DMAS-89252","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":186,"del":172,"lane":"other"},{"ld":"2026-02-20","d":"2026-02-20T12:29:33-08:00","tk":"DMAS-89342","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":17,"del":16,"lane":"other"},{"ld":"2026-02-20","d":"2026-02-20T12:29:33-08:00","tk":"DMAS-89342","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":17,"del":16,"lane":"other"},{"ld":"2026-02-20","d":"2026-02-20T14:46:50-08:00","tk":"DMAS-89252","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":0,"del":1,"lane":"other"},{"ld":"2026-02-23","d":"2026-02-23T14:51:52-08:00","tk":"DMAS-89264","repo":"onc","pr":false,"stash":false,"f":5,"ins":60,"del":25,"lane":"other"},{"ld":"2026-02-23","d":"2026-02-23T14:51:52-08:00","tk":"DMAS-89264","repo":"onc","pr":false,"stash":false,"f":5,"ins":60,"del":25,"lane":"other"},{"ld":"2026-02-24","d":"2026-02-24T09:43:24-08:00","tk":"DMAS-89370","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":3,"del":1,"lane":"other"},{"ld":"2026-02-24","d":"2026-02-24T14:31:20-08:00","tk":"DMAS-89264","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":11,"del":2,"lane":"other"},{"ld":"2026-02-24","d":"2026-02-24T14:31:20-08:00","tk":"DMAS-89264","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":11,"del":2,"lane":"other"},{"ld":"2026-02-24","d":"2026-02-24T14:45:01-08:00","tk":"DMAS-89264","repo":"onc","pr":false,"stash":false,"f":2,"ins":3,"del":13,"lane":"other"},{"ld":"2026-02-24","d":"2026-02-24T14:45:01-08:00","tk":"DMAS-89264","repo":"onc","pr":false,"stash":false,"f":2,"ins":3,"del":13,"lane":"other"},{"ld":"2026-02-24","d":"2026-02-24T15:10:17-08:00","tk":"DMAS-89252","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":0,"del":7,"lane":"other"},{"ld":"2026-02-24","d":"2026-02-24T15:11:08-08:00","tk":"DMAS-89252","repo":"oceans-next","pr":false,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-02-25","d":"2026-02-25T10:12:41-08:00","tk":"DMAS-89252","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":32,"del":18,"lane":"other"},{"ld":"2026-02-25","d":"2026-02-25T10:32:34-08:00","tk":"DMAS-89252","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":0,"del":5,"lane":"other"},{"ld":"2026-02-25","d":"2026-02-25T11:49:29-08:00","tk":"DMAS-89252","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":10,"del":18,"lane":"other"},{"ld":"2026-02-25","d":"2026-02-25T16:01:24-08:00","tk":"DMAS-89390","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":9,"del":0,"lane":"other"},{"ld":"2026-02-26","d":"2026-02-26T13:55:25-08:00","tk":"DMAS-89264","repo":"onc","pr":false,"stash":false,"f":3,"ins":12,"del":11,"lane":"other"},{"ld":"2026-02-26","d":"2026-02-26T13:57:27-08:00","tk":"DMAS-89264","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":3,"del":5,"lane":"other"},{"ld":"2026-02-26","d":"2026-02-26T13:57:27-08:00","tk":"DMAS-89264","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":3,"del":5,"lane":"other"},{"ld":"2026-02-26","d":"2026-02-26T15:31:18-08:00","tk":"DMAS-89252","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":1,"del":4,"lane":"other"},{"ld":"2026-02-26","d":"2026-02-26T22:22:39Z","tk":"DMAS-89370","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-02-27","d":"2026-02-27T09:38:24-08:00","tk":"DMAS-89390","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":3,"del":7,"lane":"other"},{"ld":"2026-02-27","d":"2026-02-27T14:23:26-08:00","tk":"DMAS-89264","repo":"onc","pr":false,"stash":false,"f":1,"ins":1,"del":2,"lane":"other"},{"ld":"2026-02-27","d":"2026-02-27T14:44:00-08:00","tk":"DMAS-89264","repo":"onc","pr":false,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-02-27","d":"2026-02-27T23:58:23Z","tk":"DMAS-89390","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-02-27","d":"2026-02-28T00:00:03Z","tk":"DMAS-89252","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-03-02","d":"2026-03-02T09:17:46-08:00","tk":"DMAS-89264","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":3,"del":3,"lane":"other"},{"ld":"2026-03-02","d":"2026-03-02T09:19:09-08:00","tk":"DMAS-89264","repo":"oceans-next","pr":false,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-03-02","d":"2026-03-02T10:06:22-08:00","tk":"DMAS-89264","repo":"onc","pr":false,"stash":false,"f":1,"ins":1,"del":2,"lane":"other"},{"ld":"2026-03-02","d":"2026-03-02T10:26:16-08:00","tk":"DMAS-89264","repo":"onc","pr":false,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-03-03","d":"2026-03-03T14:04:21-08:00","tk":"DMAS-89317","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":109,"del":123,"lane":"other"},{"ld":"2026-03-03","d":"2026-03-03T16:52:45Z","tk":"DMAS-89264","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-03-03","d":"2026-03-03T16:53:02Z","tk":"DMAS-89264","repo":"onc","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-03-04","d":"2026-03-04T10:02:26-08:00","tk":"DMAS-89317","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":3,"del":3,"lane":"other"},{"ld":"2026-03-04","d":"2026-03-04T15:37:06-08:00","tk":"DMAS-89342","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":22,"del":15,"lane":"other"},{"ld":"2026-03-04","d":"2026-03-04T15:37:06-08:00","tk":"DMAS-89342","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":22,"del":15,"lane":"other"},{"ld":"2026-03-06","d":"2026-03-06T17:13:45Z","tk":"DMAS-89317","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-03-10","d":"2026-03-10T15:32:49-07:00","tk":"DMAS-89276","repo":"oceans-next","pr":false,"stash":false,"f":7,"ins":317,"del":0,"lane":"sensorattr"},{"ld":"2026-03-10","d":"2026-03-10T15:34:22-07:00","tk":"DMAS-89276","repo":"onc","pr":false,"stash":false,"f":2,"ins":14,"del":2,"lane":"sensorattr"},{"ld":"2026-03-10","d":"2026-03-10T15:34:22-07:00","tk":"DMAS-89276","repo":"onc","pr":false,"stash":false,"f":2,"ins":14,"del":2,"lane":"sensorattr"},{"ld":"2026-03-10","d":"2026-03-10T16:14:44-07:00","tk":"DMAS-89276","repo":"oceans-next","pr":false,"stash":false,"f":5,"ins":310,"del":308,"lane":"sensorattr"},{"ld":"2026-03-12","d":"2026-03-12T11:15:41-07:00","tk":"DMAS-89342","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":5,"del":5,"lane":"other"},{"ld":"2026-03-12","d":"2026-03-12T11:20:27-07:00","tk":"DMAS-89342","repo":"oceans-next","pr":false,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-03-12","d":"2026-03-12T14:15:16-07:00","tk":"DMAS-89540","repo":"onc","pr":false,"stash":false,"f":2,"ins":96,"del":8,"lane":"other"},{"ld":"2026-03-16","d":"2026-03-16T12:06:29-07:00","tk":"DMAS-89540","repo":"onc","pr":false,"stash":false,"f":2,"ins":9,"del":31,"lane":"other"},{"ld":"2026-03-16","d":"2026-03-16T14:44:01-07:00","tk":"DMAS-89276","repo":"onc","pr":false,"stash":false,"f":0,"ins":0,"del":0,"lane":"sensorattr"},{"ld":"2026-03-16","d":"2026-03-16T14:48:11-07:00","tk":"DMAS-89276","repo":"onc","pr":false,"stash":false,"f":4,"ins":9,"del":380,"lane":"sensorattr"},{"ld":"2026-03-16","d":"2026-03-16T15:02:19-07:00","tk":"DMAS-89342","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":0,"del":1,"lane":"other"},{"ld":"2026-03-16","d":"2026-03-16T21:18:53Z","tk":"DMAS-89540","repo":"onc","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-03-17","d":"2026-03-17T10:56:26-07:00","tk":"DMAS-89276","repo":"oceans-next","pr":false,"stash":false,"f":6,"ins":61,"del":25,"lane":"sensorattr"},{"ld":"2026-03-18","d":"2026-03-18T16:06:43-07:00","tk":"DMAS-89221","repo":"database","pr":false,"stash":false,"f":3,"ins":109,"del":0,"lane":"sensorattr"},{"ld":"2026-03-18","d":"2026-03-18T20:22:48Z","tk":"DMAS-89342","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-03-19","d":"2026-03-19T15:24:30-07:00","tk":"DMAS-89606","repo":"oceans-next","pr":false,"stash":false,"f":8,"ins":324,"del":6,"lane":"sensorattr"},{"ld":"2026-03-19","d":"2026-03-19T19:30:44Z","tk":"DMAS-89276","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"sensorattr"},{"ld":"2026-03-20","d":"2026-03-20T11:24:23-07:00","tk":"DMAS-89650","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":6,"del":2,"lane":"other"},{"ld":"2026-03-20","d":"2026-03-20T14:06:17-07:00","tk":"DMAS-89581","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":4,"del":1,"lane":"other"},{"ld":"2026-03-23","d":"2026-03-23T15:50:36Z","tk":"DMAS-89221","repo":"database","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"sensorattr"},{"ld":"2026-03-23","d":"2026-03-23T16:43:54-07:00","tk":"DMAS-89581","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":3,"del":5,"lane":"other"},{"ld":"2026-03-24","d":"2026-03-24T08:57:39-07:00","tk":"DMAS-89606","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":233,"del":233,"lane":"sensorattr"},{"ld":"2026-03-24","d":"2026-03-24T09:44:19-07:00","tk":"DMAS-89606","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":4,"del":4,"lane":"sensorattr"},{"ld":"2026-03-24","d":"2026-03-24T14:30:36-07:00","tk":"DMAS-89606","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":6,"del":6,"lane":"sensorattr"},{"ld":"2026-03-24","d":"2026-03-24T18:01:14Z","tk":"DMAS-89581","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-03-25","d":"2026-03-25T10:33:22-07:00","tk":"DMAS-89650","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":11,"del":6,"lane":"other"},{"ld":"2026-03-25","d":"2026-03-25T15:13:17-07:00","tk":"DMAS-89683","repo":"ui-testing","pr":false,"stash":false,"f":2,"ins":8,"del":4,"lane":"tests"},{"ld":"2026-03-25","d":"2026-03-25T21:10:46Z","tk":"DMAS-89650","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-03-26","d":"2026-03-26T14:01:23-07:00","tk":"DMAS-89706","repo":"onc","pr":false,"stash":false,"f":1,"ins":1,"del":0,"lane":"other"},{"ld":"2026-03-26","d":"2026-03-26T15:01:00-07:00","tk":"DMAS-89706","repo":"onc","pr":false,"stash":false,"f":1,"ins":1,"del":1,"lane":"other"},{"ld":"2026-03-26","d":"2026-03-26T17:12:24Z","tk":"DMAS-89683","repo":"ui-testing","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"tests"},{"ld":"2026-03-26","d":"2026-03-26T21:45:10Z","tk":"DMAS-89706","repo":"onc","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-03-26","d":"2026-03-26T22:45:45Z","tk":"DMAS-89706","repo":"onc","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-03-30","d":"2026-03-30T12:02:08-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":8,"ins":355,"del":0,"lane":"sensorattr"},{"ld":"2026-03-30","d":"2026-03-30T12:02:08-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":8,"ins":355,"del":0,"lane":"sensorattr"},{"ld":"2026-03-30","d":"2026-03-30T12:02:08-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":8,"ins":355,"del":0,"lane":"sensorattr"},{"ld":"2026-03-30","d":"2026-03-30T12:02:08-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":8,"ins":355,"del":0,"lane":"sensorattr"},{"ld":"2026-03-30","d":"2026-03-30T12:02:08-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":8,"ins":355,"del":0,"lane":"sensorattr"},{"ld":"2026-03-30","d":"2026-03-30T12:09:07-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":8,"ins":327,"del":9,"lane":"sensorattr"},{"ld":"2026-03-30","d":"2026-03-30T12:09:07-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":8,"ins":327,"del":9,"lane":"sensorattr"},{"ld":"2026-03-30","d":"2026-03-30T12:09:07-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":8,"ins":327,"del":9,"lane":"sensorattr"},{"ld":"2026-03-30","d":"2026-03-30T12:09:07-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":8,"ins":327,"del":9,"lane":"sensorattr"},{"ld":"2026-03-30","d":"2026-03-30T12:09:07-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":8,"ins":327,"del":9,"lane":"sensorattr"},{"ld":"2026-03-30","d":"2026-03-30T15:10:19-07:00","tk":"DMAS-80813","repo":"onc","pr":false,"stash":false,"f":4,"ins":11,"del":370,"lane":"sensorattr"},{"ld":"2026-03-30","d":"2026-03-30T15:10:19-07:00","tk":"DMAS-80813","repo":"onc","pr":false,"stash":false,"f":4,"ins":11,"del":370,"lane":"sensorattr"},{"ld":"2026-03-30","d":"2026-03-30T15:10:19-07:00","tk":"DMAS-80813","repo":"onc","pr":false,"stash":false,"f":4,"ins":11,"del":370,"lane":"sensorattr"},{"ld":"2026-03-30","d":"2026-03-30T15:10:19-07:00","tk":"DMAS-80813","repo":"onc","pr":false,"stash":false,"f":4,"ins":11,"del":370,"lane":"sensorattr"},{"ld":"2026-04-01","d":"2026-04-01T15:04:55-07:00","tk":"DMAS-89779","repo":"oceans-next","pr":false,"stash":false,"f":9,"ins":150,"del":142,"lane":"sensorattr"},{"ld":"2026-04-01","d":"2026-04-01T15:06:43-07:00","tk":"DMAS-89779","repo":"onc","pr":false,"stash":false,"f":2,"ins":213,"del":434,"lane":"sensorattr"},{"ld":"2026-04-01","d":"2026-04-01T15:45:11-07:00","tk":"DMAS-89779","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":6,"del":10,"lane":"sensorattr"},{"ld":"2026-04-08","d":"2026-04-08T14:41:36-07:00","tk":"DMAS-89779","repo":"oceans-next","pr":false,"stash":false,"f":9,"ins":131,"del":139,"lane":"sensorattr"},{"ld":"2026-04-08","d":"2026-04-08T14:46:25-07:00","tk":"DMAS-80813","repo":"onc","pr":false,"stash":false,"f":5,"ins":809,"del":58,"lane":"sensorattr"},{"ld":"2026-04-08","d":"2026-04-08T14:46:25-07:00","tk":"DMAS-80813","repo":"onc","pr":false,"stash":false,"f":5,"ins":809,"del":58,"lane":"sensorattr"},{"ld":"2026-04-08","d":"2026-04-08T14:46:25-07:00","tk":"DMAS-89779","repo":"onc","pr":false,"stash":false,"f":5,"ins":861,"del":58,"lane":"sensorattr"},{"ld":"2026-04-09","d":"2026-04-09T13:13:33-07:00","tk":"DMAS-89779","repo":"onc","pr":false,"stash":false,"f":2,"ins":36,"del":88,"lane":"sensorattr"},{"ld":"2026-04-10","d":"2026-04-10T14:00:33-07:00","tk":"DMAS-89779","repo":"oceans-next","pr":false,"stash":false,"f":9,"ins":27,"del":142,"lane":"sensorattr"},{"ld":"2026-04-13","d":"2026-04-13T13:36:29-07:00","tk":"DMAS-90050","repo":"web-service-testing","pr":false,"stash":false,"f":3,"ins":85,"del":0,"lane":"tests"},{"ld":"2026-04-13","d":"2026-04-13T13:36:29-07:00","tk":"DMAS-89840","repo":"web-service-testing","pr":false,"stash":false,"f":3,"ins":85,"del":0,"lane":"sensorattr"},{"ld":"2026-04-14","d":"2026-04-14T09:04:12-07:00","tk":"DMAS-89625","repo":"oceans-next","pr":false,"stash":false,"f":10,"ins":969,"del":25,"lane":"sensorattr"},{"ld":"2026-04-14","d":"2026-04-14T09:21:35-07:00","tk":"DMAS-80813","repo":"onc","pr":false,"stash":false,"f":1,"ins":4,"del":1,"lane":"sensorattr"},{"ld":"2026-04-14","d":"2026-04-14T09:21:35-07:00","tk":"DMAS-80813","repo":"onc","pr":false,"stash":false,"f":1,"ins":4,"del":1,"lane":"sensorattr"},{"ld":"2026-04-14","d":"2026-04-14T10:48:29-07:00","tk":"DMAS-89779","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":12,"del":14,"lane":"sensorattr"},{"ld":"2026-04-14","d":"2026-04-14T14:53:26-07:00","tk":"DMAS-89625","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":27,"del":16,"lane":"sensorattr"},{"ld":"2026-04-14","d":"2026-04-14T15:02:04-07:00","tk":"DMAS-89779","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":2,"del":6,"lane":"sensorattr"},{"ld":"2026-04-15","d":"2026-04-15T09:06:31-07:00","tk":"DMAS-89779","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":0,"del":4,"lane":"sensorattr"},{"ld":"2026-04-15","d":"2026-04-15T11:43:18-07:00","tk":"DMAS-89779","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":10,"del":8,"lane":"sensorattr"},{"ld":"2026-04-15","d":"2026-04-15T14:23:24-07:00","tk":"DMAS-89779","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":4,"del":6,"lane":"sensorattr"},{"ld":"2026-04-15","d":"2026-04-15T16:14:32-07:00","tk":"DMAS-81485","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":2,"del":2,"lane":"other"},{"ld":"2026-04-16","d":"2026-04-16T16:09:44Z","tk":"DMAS-89779","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"sensorattr"},{"ld":"2026-04-16","d":"2026-04-16T22:44:58Z","tk":"DMAS-81485","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-04-17","d":"2026-04-17T13:25:32-07:00","tk":"DMAS-89840","repo":"web-service-testing","pr":false,"stash":false,"f":1,"ins":1,"del":1,"lane":"sensorattr"},{"ld":"2026-04-17","d":"2026-04-17T14:00:58-07:00","tk":"DMAS-89625","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":57,"del":75,"lane":"sensorattr"},{"ld":"2026-04-20","d":"2026-04-20T14:00:33-07:00","tk":"DMAS-81524","repo":"onc","pr":false,"stash":false,"f":2,"ins":138,"del":18,"lane":"other"},{"ld":"2026-04-20","d":"2026-04-20T14:13:00-07:00","tk":"DMAS-81524","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":218,"del":246,"lane":"other"},{"ld":"2026-04-20","d":"2026-04-20T14:20:34-07:00","tk":"DMAS-81524","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":3,"del":0,"lane":"other"},{"ld":"2026-04-20","d":"2026-04-20T14:27:00-07:00","tk":"DMAS-81524","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":4,"del":3,"lane":"other"},{"ld":"2026-04-20","d":"2026-04-20T22:34:56Z","tk":"DMAS-89840","repo":"web-service-testing","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"sensorattr"},{"ld":"2026-04-21","d":"2026-04-21T09:04:15-07:00","tk":"DMAS-89625","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":5,"del":5,"lane":"sensorattr"},{"ld":"2026-04-21","d":"2026-04-21T09:36:06-07:00","tk":"DMAS-89625","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":6,"del":1,"lane":"sensorattr"},{"ld":"2026-04-21","d":"2026-04-21T10:33:50-07:00","tk":"DMAS-81524","repo":"onc","pr":false,"stash":false,"f":2,"ins":36,"del":44,"lane":"other"},{"ld":"2026-04-21","d":"2026-04-21T12:12:29-07:00","tk":"DMAS-81524","repo":"onc","pr":false,"stash":false,"f":2,"ins":48,"del":31,"lane":"other"},{"ld":"2026-04-24","d":"2026-04-24T11:02:08-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":12,"ins":965,"del":23,"lane":"sensorattr"},{"ld":"2026-04-24","d":"2026-04-24T11:02:08-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":10,"ins":125,"del":258,"lane":"sensorattr"},{"ld":"2026-04-24","d":"2026-04-24T11:02:08-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":12,"ins":965,"del":23,"lane":"sensorattr"},{"ld":"2026-04-24","d":"2026-04-24T11:02:08-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":10,"ins":125,"del":258,"lane":"sensorattr"},{"ld":"2026-04-24","d":"2026-04-24T11:02:08-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":12,"ins":965,"del":23,"lane":"sensorattr"},{"ld":"2026-04-24","d":"2026-04-24T11:02:08-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":10,"ins":125,"del":258,"lane":"sensorattr"},{"ld":"2026-04-27","d":"2026-04-27T09:56:14-07:00","tk":"DMAS-80813","repo":"onc","pr":false,"stash":false,"f":1,"ins":1,"del":1,"lane":"sensorattr"},{"ld":"2026-04-27","d":"2026-04-27T09:56:14-07:00","tk":"DMAS-80813","repo":"onc","pr":false,"stash":false,"f":1,"ins":1,"del":1,"lane":"sensorattr"},{"ld":"2026-04-27","d":"2026-04-27T09:56:23-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":7,"ins":16,"del":8,"lane":"sensorattr"},{"ld":"2026-04-27","d":"2026-04-27T09:56:23-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":7,"ins":16,"del":8,"lane":"sensorattr"},{"ld":"2026-04-27","d":"2026-04-27T09:56:23-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":7,"ins":16,"del":8,"lane":"sensorattr"},{"ld":"2026-04-27","d":"2026-04-27T15:12:51-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":78,"del":3,"lane":"sensorattr"},{"ld":"2026-04-27","d":"2026-04-27T15:12:51-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":78,"del":3,"lane":"sensorattr"},{"ld":"2026-04-27","d":"2026-04-27T15:12:51-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":78,"del":3,"lane":"sensorattr"},{"ld":"2026-04-27","d":"2026-04-27T15:17:11-07:00","tk":"DMAS-80813","repo":"onc","pr":false,"stash":false,"f":2,"ins":102,"del":2,"lane":"sensorattr"},{"ld":"2026-04-27","d":"2026-04-27T15:17:11-07:00","tk":"DMAS-80813","repo":"onc","pr":false,"stash":false,"f":2,"ins":102,"del":2,"lane":"sensorattr"},{"ld":"2026-04-27","d":"2026-04-27T15:56:39-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":2,"del":2,"lane":"sensorattr"},{"ld":"2026-04-27","d":"2026-04-27T15:56:39-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":2,"del":2,"lane":"sensorattr"},{"ld":"2026-04-27","d":"2026-04-27T15:56:39-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":2,"del":2,"lane":"sensorattr"},{"ld":"2026-04-28","d":"2026-04-28T09:12:42-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":4,"del":4,"lane":"sensorattr"},{"ld":"2026-04-28","d":"2026-04-28T09:12:42-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":4,"del":4,"lane":"sensorattr"},{"ld":"2026-04-28","d":"2026-04-28T09:12:42-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":4,"del":4,"lane":"sensorattr"},{"ld":"2026-04-28","d":"2026-04-28T10:15:48-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":9,"del":2,"lane":"sensorattr"},{"ld":"2026-04-28","d":"2026-04-28T10:15:48-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":9,"del":2,"lane":"sensorattr"},{"ld":"2026-04-28","d":"2026-04-28T10:15:48-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":9,"del":2,"lane":"sensorattr"},{"ld":"2026-04-28","d":"2026-04-28T11:46:32-07:00","tk":"DMAS-81524","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":121,"del":73,"lane":"other"},{"ld":"2026-04-28","d":"2026-04-28T11:46:32-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":121,"del":73,"lane":"sensorattr"},{"ld":"2026-04-28","d":"2026-04-28T12:53:12-07:00","tk":"DMAS-81524","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":3,"del":1,"lane":"other"},{"ld":"2026-04-28","d":"2026-04-28T12:53:12-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":3,"del":1,"lane":"sensorattr"},{"ld":"2026-04-28","d":"2026-04-28T12:56:26-07:00","tk":"DMAS-81524","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":0,"del":1,"lane":"other"},{"ld":"2026-04-28","d":"2026-04-28T12:56:26-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":0,"del":1,"lane":"sensorattr"},{"ld":"2026-04-30","d":"2026-04-30T13:52:50-07:00","tk":"DMAS-89994","repo":"oceans-next","pr":false,"stash":false,"f":6,"ins":190,"del":5,"lane":"sensorattr"},{"ld":"2026-04-30","d":"2026-04-30T13:52:50-07:00","tk":"DMAS-89994","repo":"oceans-next","pr":false,"stash":false,"f":6,"ins":190,"del":5,"lane":"sensorattr"},{"ld":"2026-04-30","d":"2026-04-30T13:52:50-07:00","tk":"DMAS-89994","repo":"oceans-next","pr":false,"stash":false,"f":6,"ins":190,"del":5,"lane":"sensorattr"},{"ld":"2026-04-30","d":"2026-04-30T13:53:25-07:00","tk":"DMAS-89994","repo":"onc","pr":false,"stash":false,"f":2,"ins":392,"del":43,"lane":"sensorattr"},{"ld":"2026-04-30","d":"2026-04-30T13:53:25-07:00","tk":"DMAS-89994","repo":"onc","pr":false,"stash":false,"f":2,"ins":392,"del":43,"lane":"sensorattr"},{"ld":"2026-04-30","d":"2026-04-30T14:06:13-07:00","tk":"DMAS-89994","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":25,"del":2,"lane":"sensorattr"},{"ld":"2026-04-30","d":"2026-04-30T14:06:13-07:00","tk":"DMAS-89994","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":25,"del":2,"lane":"sensorattr"},{"ld":"2026-04-30","d":"2026-04-30T14:06:13-07:00","tk":"DMAS-89994","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":25,"del":2,"lane":"sensorattr"},{"ld":"2026-04-30","d":"2026-04-30T16:10:18Z","tk":"DMAS-81524","repo":"onc","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-04-30","d":"2026-04-30T18:35:10Z","tk":"DMAS-81524","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-05-01","d":"2026-05-01T10:45:40-07:00","tk":"DMAS-89994","repo":"onc","pr":false,"stash":false,"f":2,"ins":66,"del":92,"lane":"sensorattr"},{"ld":"2026-05-01","d":"2026-05-01T10:45:40-07:00","tk":"DMAS-89994","repo":"onc","pr":false,"stash":false,"f":2,"ins":66,"del":92,"lane":"sensorattr"},{"ld":"2026-05-01","d":"2026-05-01T15:21:26-07:00","tk":"DMAS-85781","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":18,"del":0,"lane":"other"},{"ld":"2026-05-01","d":"2026-05-01T22:17:04Z","tk":"DMAS-89994","repo":"onc","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"sensorattr"},{"ld":"2026-05-04","d":"2026-05-04T11:41:12-07:00","tk":"DMAS-89994","repo":"oceans-next","pr":false,"stash":false,"f":5,"ins":20,"del":28,"lane":"sensorattr"},{"ld":"2026-05-04","d":"2026-05-04T11:41:12-07:00","tk":"DMAS-89994","repo":"oceans-next","pr":false,"stash":false,"f":5,"ins":20,"del":28,"lane":"sensorattr"},{"ld":"2026-05-04","d":"2026-05-04T11:41:12-07:00","tk":"DMAS-89994","repo":"oceans-next","pr":false,"stash":false,"f":5,"ins":20,"del":28,"lane":"sensorattr"},{"ld":"2026-05-04","d":"2026-05-04T21:00:33Z","tk":"DMAS-85781","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-05-04","d":"2026-05-04T21:00:34Z","tk":"","repo":"oceans-next","pr":false,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-05-05","d":"2026-05-05T13:53:50-07:00","tk":"DMAS-90050","repo":"web-service-testing","pr":false,"stash":false,"f":3,"ins":113,"del":0,"lane":"tests"},{"ld":"2026-05-05","d":"2026-05-05T14:11:37-07:00","tk":"DMAS-89994","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":59,"del":10,"lane":"sensorattr"},{"ld":"2026-05-05","d":"2026-05-05T14:11:37-07:00","tk":"DMAS-89994","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":59,"del":10,"lane":"sensorattr"},{"ld":"2026-05-05","d":"2026-05-05T14:11:37-07:00","tk":"DMAS-89994","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":59,"del":10,"lane":"sensorattr"},{"ld":"2026-05-05","d":"2026-05-05T14:21:06-07:00","tk":"DMAS-80813","repo":"onc","pr":false,"stash":false,"f":1,"ins":21,"del":1,"lane":"sensorattr"},{"ld":"2026-05-05","d":"2026-05-05T14:48:13-07:00","tk":"DMAS-89994","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":3,"del":1,"lane":"sensorattr"},{"ld":"2026-05-05","d":"2026-05-05T14:48:13-07:00","tk":"DMAS-89994","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":3,"del":1,"lane":"sensorattr"},{"ld":"2026-05-05","d":"2026-05-05T14:48:13-07:00","tk":"DMAS-89994","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":3,"del":1,"lane":"sensorattr"},{"ld":"2026-05-06","d":"2026-05-06T09:45:57-07:00","tk":"DMAS-89994","repo":"oceans-next","pr":false,"stash":false,"f":5,"ins":22,"del":20,"lane":"sensorattr"},{"ld":"2026-05-06","d":"2026-05-06T09:45:57-07:00","tk":"DMAS-89994","repo":"oceans-next","pr":false,"stash":false,"f":5,"ins":22,"del":20,"lane":"sensorattr"},{"ld":"2026-05-06","d":"2026-05-06T09:45:57-07:00","tk":"DMAS-89994","repo":"oceans-next","pr":false,"stash":false,"f":5,"ins":22,"del":20,"lane":"sensorattr"},{"ld":"2026-05-06","d":"2026-05-06T11:22:08-07:00","tk":"DMAS-80813","repo":"onc","pr":false,"stash":false,"f":2,"ins":337,"del":25,"lane":"sensorattr"},{"ld":"2026-05-06","d":"2026-05-06T14:14:06-07:00","tk":"DMAS-90060","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":6,"del":6,"lane":"other"},{"ld":"2026-05-07","d":"2026-05-07T09:53:57-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":8,"del":8,"lane":"sensorattr"},{"ld":"2026-05-07","d":"2026-05-07T09:53:57-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":8,"del":8,"lane":"sensorattr"},{"ld":"2026-05-07","d":"2026-05-07T09:53:57-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":8,"del":8,"lane":"sensorattr"},{"ld":"2026-05-07","d":"2026-05-07T10:08:48-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":0,"del":4,"lane":"sensorattr"},{"ld":"2026-05-07","d":"2026-05-07T10:08:48-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":0,"del":4,"lane":"sensorattr"},{"ld":"2026-05-07","d":"2026-05-07T10:08:48-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":0,"del":7,"lane":"sensorattr"},{"ld":"2026-05-07","d":"2026-05-07T11:54:45-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":0,"del":2,"lane":"sensorattr"},{"ld":"2026-05-07","d":"2026-05-07T11:54:45-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":0,"del":2,"lane":"sensorattr"},{"ld":"2026-05-07","d":"2026-05-07T15:18:09-07:00","tk":"DMAS-80813","repo":"onc","pr":false,"stash":false,"f":1,"ins":6,"del":10,"lane":"sensorattr"},{"ld":"2026-05-07","d":"2026-05-07T16:08:19Z","tk":"DMAS-89994","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"sensorattr"},{"ld":"2026-05-08","d":"2026-05-08T09:31:50-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":2,"del":0,"lane":"sensorattr"},{"ld":"2026-05-08","d":"2026-05-08T09:31:50-07:00","tk":"DMAS-80813","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":2,"del":0,"lane":"sensorattr"},{"ld":"2026-05-08","d":"2026-05-08T10:43:34-07:00","tk":"DMAS-80813","repo":"onc","pr":false,"stash":false,"f":2,"ins":55,"del":38,"lane":"sensorattr"},{"ld":"2026-05-11","d":"2026-05-11T14:50:50-07:00","tk":"DMAS-90060","repo":"oceans-next","pr":false,"stash":false,"f":9,"ins":9,"del":9,"lane":"other"},{"ld":"2026-05-11","d":"2026-05-11T14:55:49-07:00","tk":"DMAS-90060","repo":"oceans-next","pr":false,"stash":false,"f":8,"ins":25,"del":25,"lane":"other"},{"ld":"2026-05-11","d":"2026-05-11T15:07:08-07:00","tk":"DMAS-90060","repo":"oceans-next","pr":false,"stash":false,"f":9,"ins":9,"del":9,"lane":"other"},{"ld":"2026-05-11","d":"2026-05-11T15:48:10-07:00","tk":"DMAS-90060","repo":"oceans-next","pr":false,"stash":false,"f":8,"ins":13,"del":13,"lane":"other"},{"ld":"2026-05-11","d":"2026-05-11T15:55:12-07:00","tk":"DMAS-90060","repo":"oceans-next","pr":false,"stash":false,"f":9,"ins":9,"del":9,"lane":"other"},{"ld":"2026-05-12","d":"2026-05-12T10:01:17-07:00","tk":"DMAS-90060","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":1,"del":1,"lane":"other"},{"ld":"2026-05-12","d":"2026-05-13T02:19:07Z","tk":"DMAS-80813","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"sensorattr"},{"ld":"2026-05-12","d":"2026-05-13T02:19:15Z","tk":"DMAS-80813","repo":"onc","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"sensorattr"},{"ld":"2026-05-13","d":"2026-05-13T15:12:46-07:00","tk":"DMAS-90076","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":41,"del":21,"lane":"other"},{"ld":"2026-05-13","d":"2026-05-13T15:12:46-07:00","tk":"DMAS-90076","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":41,"del":21,"lane":"other"},{"ld":"2026-05-15","d":"2026-05-15T15:44:41-07:00","tk":"DMAS-86249","repo":"onc","pr":false,"stash":false,"f":8,"ins":331,"del":87,"lane":"other"},{"ld":"2026-05-15","d":"2026-05-15T15:45:50-07:00","tk":"DMAS-86249","repo":"oceans-next","pr":false,"stash":false,"f":7,"ins":621,"del":13,"lane":"other"},{"ld":"2026-05-15","d":"2026-05-15T16:07:14-07:00","tk":"DMAS-90186","repo":"database","pr":false,"stash":false,"f":1,"ins":14,"del":0,"lane":"sensorattr"},{"ld":"2026-05-19","d":"2026-05-19T12:10:48-07:00","tk":"DMAS-86249","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":7,"del":7,"lane":"other"},{"ld":"2026-05-19","d":"2026-05-19T15:28:26-07:00","tk":"DMAS-90083","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":104,"del":3,"lane":"sensorattr"},{"ld":"2026-05-19","d":"2026-05-19T15:28:26-07:00","tk":"DMAS-90083","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":104,"del":3,"lane":"sensorattr"},{"ld":"2026-05-19","d":"2026-05-19T15:31:58-07:00","tk":"DMAS-90083","repo":"onc","pr":false,"stash":false,"f":2,"ins":140,"del":9,"lane":"sensorattr"},{"ld":"2026-05-19","d":"2026-05-19T15:31:58-07:00","tk":"DMAS-90083","repo":"onc","pr":false,"stash":false,"f":2,"ins":140,"del":9,"lane":"sensorattr"},{"ld":"2026-05-19","d":"2026-05-19T15:54:04-07:00","tk":"DMAS-90083","repo":"onc","pr":false,"stash":false,"f":2,"ins":2,"del":2,"lane":"sensorattr"},{"ld":"2026-05-19","d":"2026-05-19T15:54:04-07:00","tk":"DMAS-90083","repo":"onc","pr":false,"stash":false,"f":2,"ins":2,"del":2,"lane":"sensorattr"},{"ld":"2026-05-19","d":"2026-05-19T16:35:59Z","tk":"DMAS-90186","repo":"database","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"sensorattr"},{"ld":"2026-05-20","d":"2026-05-20T11:18:51-07:00","tk":"DMAS-90083","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":94,"del":1,"lane":"sensorattr"},{"ld":"2026-05-20","d":"2026-05-20T11:18:51-07:00","tk":"DMAS-90083","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":94,"del":1,"lane":"sensorattr"},{"ld":"2026-05-20","d":"2026-05-20T11:21:28-07:00","tk":"DMAS-90083","repo":"onc","pr":false,"stash":false,"f":2,"ins":181,"del":6,"lane":"sensorattr"},{"ld":"2026-05-20","d":"2026-05-20T11:21:28-07:00","tk":"DMAS-90083","repo":"onc","pr":false,"stash":false,"f":2,"ins":181,"del":6,"lane":"sensorattr"},{"ld":"2026-05-20","d":"2026-05-20T14:00:35-07:00","tk":"DMAS-90083","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":47,"del":8,"lane":"sensorattr"},{"ld":"2026-05-20","d":"2026-05-20T15:14:33-07:00","tk":"DMAS-90083","repo":"onc","pr":false,"stash":false,"f":3,"ins":8,"del":15,"lane":"sensorattr"},{"ld":"2026-05-20","d":"2026-05-20T15:36:50-07:00","tk":"DMAS-86249","repo":"onc","pr":false,"stash":false,"f":4,"ins":292,"del":394,"lane":"other"},{"ld":"2026-05-21","d":"2026-05-21T14:48:05-07:00","tk":"DMAS-86249","repo":"onc","pr":false,"stash":false,"f":1,"ins":36,"del":45,"lane":"other"},{"ld":"2026-05-22","d":"2026-05-22T14:42:24-07:00","tk":"DMAS-86249","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":17,"del":7,"lane":"other"},{"ld":"2026-05-22","d":"2026-05-22T15:21:33-07:00","tk":"DMAS-90219","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":138,"del":39,"lane":"other"},{"ld":"2026-05-22","d":"2026-05-22T15:21:33-07:00","tk":"DMAS-90219","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":119,"del":16,"lane":"other"},{"ld":"2026-05-26","d":"2026-05-26T16:10:46-07:00","tk":"DMAS-90219","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":1,"del":1,"lane":"other"},{"ld":"2026-05-26","d":"2026-05-26T16:10:46-07:00","tk":"DMAS-90219","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":1,"del":1,"lane":"other"},{"ld":"2026-05-27","d":"2026-05-27T09:05:30-07:00","tk":"DMAS-90219","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":1,"del":7,"lane":"other"},{"ld":"2026-05-27","d":"2026-05-27T11:49:41-07:00","tk":"DMAS-86249","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":18,"del":20,"lane":"other"},{"ld":"2026-05-27","d":"2026-05-27T14:26:41-07:00","tk":"DMAS-90083","repo":"onc","pr":false,"stash":false,"f":2,"ins":57,"del":45,"lane":"sensorattr"},{"ld":"2026-05-29","d":"2026-05-29T22:58:06Z","tk":"DMAS-86249","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-05-29","d":"2026-05-29T22:58:18Z","tk":"DMAS-86249","repo":"onc","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-06-03","d":"2026-06-03T14:28:52-07:00","tk":"DMAS-90083","repo":"onc","pr":false,"stash":false,"f":4,"ins":175,"del":70,"lane":"sensorattr"},{"ld":"2026-06-03","d":"2026-06-03T15:34:50-07:00","tk":"DMAS-90083","repo":"oceans-next","pr":false,"stash":false,"f":8,"ins":212,"del":95,"lane":"sensorattr"},{"ld":"2026-06-03","d":"2026-06-03T15:35:55-07:00","tk":"DMAS-90083","repo":"oceans-next","pr":false,"stash":false,"f":7,"ins":148,"del":65,"lane":"sensorattr"},{"ld":"2026-06-03","d":"2026-06-03T17:57:58Z","tk":"DMAS-90219","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-06-04","d":"2026-06-04T12:56:52-07:00","tk":"DMAS-90083","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":58,"del":22,"lane":"sensorattr"},{"ld":"2026-06-05","d":"2026-06-05T09:24:34-07:00","tk":"DMAS-90083","repo":"oceans-next","pr":false,"stash":false,"f":10,"ins":52,"del":48,"lane":"sensorattr"},{"ld":"2026-06-05","d":"2026-06-05T15:23:10-07:00","tk":"DMAS-90083","repo":"onc","pr":false,"stash":false,"f":3,"ins":13,"del":71,"lane":"sensorattr"},{"ld":"2026-06-08","d":"2026-06-08T17:33:42Z","tk":"DMAS-90076","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-06-09","d":"2026-06-09T14:44:13-07:00","tk":"DMAS-90512","repo":"ui-testing","pr":false,"stash":false,"f":8,"ins":687,"del":378,"lane":"tests"},{"ld":"2026-06-09","d":"2026-06-09T14:58:43-07:00","tk":"DMAS-90512","repo":"ui-testing","pr":false,"stash":false,"f":1,"ins":3,"del":2,"lane":"tests"},{"ld":"2026-06-10","d":"2026-06-10T12:32:39-07:00","tk":"DMAS-90083","repo":"onc","pr":false,"stash":false,"f":1,"ins":2,"del":2,"lane":"sensorattr"},{"ld":"2026-06-11","d":"2026-06-11T15:27:45-07:00","tk":"DMAS-90083","repo":"oceans-next","pr":false,"stash":false,"f":6,"ins":113,"del":45,"lane":"sensorattr"},{"ld":"2026-06-12","d":"2026-06-12T09:16:53-07:00","tk":"DMAS-90050","repo":"web-service-testing","pr":false,"stash":false,"f":1,"ins":41,"del":0,"lane":"tests"},{"ld":"2026-06-15","d":"2026-06-15T15:50:14-07:00","tk":"DMAS-90512","repo":"ui-testing","pr":false,"stash":false,"f":4,"ins":140,"del":254,"lane":"tests"},{"ld":"2026-06-15","d":"2026-06-15T15:57:35-07:00","tk":"DMAS-90083","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":2,"del":50,"lane":"sensorattr"},{"ld":"2026-06-15","d":"2026-06-15T16:31:29-07:00","tk":"DMAS-90512","repo":"ui-testing","pr":false,"stash":false,"f":2,"ins":3,"del":5,"lane":"tests"},{"ld":"2026-06-16","d":"2026-06-16T09:10:54-07:00","tk":"DMAS-90585","repo":"onc","pr":false,"stash":false,"f":4,"ins":31,"del":1,"lane":"other"},{"ld":"2026-06-16","d":"2026-06-16T09:49:32-07:00","tk":"DMAS-90585","repo":"onc","pr":false,"stash":false,"f":7,"ins":812,"del":0,"lane":"other"},{"ld":"2026-06-16","d":"2026-06-16T12:24:52-07:00","tk":"DMAS-90601","repo":"oceans-next","pr":false,"stash":false,"f":11,"ins":550,"del":0,"lane":"am"},{"ld":"2026-06-17","d":"2026-06-17T09:45:27-07:00","tk":"DMAS-90601","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":189,"del":11,"lane":"am"},{"ld":"2026-06-17","d":"2026-06-17T15:50:33Z","tk":"DMAS-90083","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"sensorattr"},{"ld":"2026-06-17","d":"2026-06-17T15:50:37Z","tk":"DMAS-90083","repo":"onc","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"sensorattr"},{"ld":"2026-06-17","d":"2026-06-17T15:59:27-07:00","tk":"DMAS-90585","repo":"onc","pr":false,"stash":false,"f":8,"ins":60,"del":108,"lane":"other"},{"ld":"2026-06-18","d":"2026-06-18T14:46:07-07:00","tk":"DMAS-90512","repo":"ui-testing","pr":false,"stash":false,"f":3,"ins":75,"del":116,"lane":"tests"},{"ld":"2026-06-18","d":"2026-06-18T14:58:52-07:00","tk":"DMAS-90050","repo":"web-service-testing","pr":false,"stash":false,"f":7,"ins":239,"del":0,"lane":"tests"},{"ld":"2026-06-19","d":"2026-06-19T09:15:30-07:00","tk":"DMAS-90585","repo":"onc","pr":false,"stash":false,"f":1,"ins":1,"del":2,"lane":"other"},{"ld":"2026-06-19","d":"2026-06-19T13:22:32-07:00","tk":"DMAS-90585","repo":"onc","pr":false,"stash":false,"f":3,"ins":22,"del":56,"lane":"other"},{"ld":"2026-06-19","d":"2026-06-19T13:30:28-07:00","tk":"DMAS-90585","repo":"onc","pr":false,"stash":false,"f":1,"ins":1,"del":0,"lane":"other"},{"ld":"2026-06-19","d":"2026-06-19T15:34:36-07:00","tk":"DMAS-90601","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":75,"del":21,"lane":"am"},{"ld":"2026-06-19","d":"2026-06-19T15:55:33-07:00","tk":"DMAS-90601","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":3,"del":1,"lane":"am"},{"ld":"2026-06-19","d":"2026-06-19T17:34:20Z","tk":"DMAS-90050","repo":"web-service-testing","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"tests"},{"ld":"2026-06-22","d":"2026-06-22T10:35:56-07:00","tk":"DMAS-90601","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":56,"del":0,"lane":"am"},{"ld":"2026-06-22","d":"2026-06-22T11:01:21-07:00","tk":"DMAS-90601","repo":"oceans-next","pr":false,"stash":false,"f":8,"ins":111,"del":46,"lane":"am"},{"ld":"2026-06-22","d":"2026-06-22T11:05:33-07:00","tk":"DMAS-90585","repo":"onc","pr":false,"stash":false,"f":1,"ins":1,"del":1,"lane":"other"},{"ld":"2026-06-22","d":"2026-06-22T13:51:26-07:00","tk":"DMAS-90601","repo":"oceans-next","pr":false,"stash":false,"f":5,"ins":82,"del":78,"lane":"am"},{"ld":"2026-06-22","d":"2026-06-22T15:09:52-07:00","tk":"DMAS-90601","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":21,"del":12,"lane":"am"},{"ld":"2026-06-23","d":"2026-06-23T13:48:04-07:00","tk":"DMAS-90512","repo":"ui-testing","pr":false,"stash":false,"f":1,"ins":125,"del":80,"lane":"tests"},{"ld":"2026-06-23","d":"2026-06-23T14:58:32-07:00","tk":"DMAS-90512","repo":"ui-testing","pr":false,"stash":false,"f":1,"ins":25,"del":5,"lane":"tests"},{"ld":"2026-06-24","d":"2026-06-24T10:58:15-07:00","tk":"DMAS-90601","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":21,"del":23,"lane":"am"},{"ld":"2026-06-24","d":"2026-06-24T14:19:18-07:00","tk":"DMAS-90512","repo":"ui-testing","pr":false,"stash":false,"f":1,"ins":10,"del":6,"lane":"tests"},{"ld":"2026-06-24","d":"2026-06-24T14:53:19-07:00","tk":"DMAS-90512","repo":"ui-testing","pr":false,"stash":false,"f":1,"ins":4,"del":4,"lane":"tests"},{"ld":"2026-06-24","d":"2026-06-24T15:57:35Z","tk":"DMAS-90585","repo":"onc","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-06-24","d":"2026-06-24T22:18:09Z","tk":"DMAS-90512","repo":"ui-testing","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"tests"},{"ld":"2026-06-25","d":"2026-06-25T16:07:00-07:00","tk":"DMAS-90083","repo":"oceans-next","pr":false,"stash":true,"f":0,"ins":0,"del":0,"lane":"sensorattr"},{"ld":"2026-06-25","d":"2026-06-25T16:07:00-07:00","tk":"DMAS-90083","repo":"oceans-next","pr":false,"stash":true,"f":0,"ins":0,"del":0,"lane":"sensorattr"},{"ld":"2026-06-26","d":"2026-06-26T16:15:35-07:00","tk":"DMAS-90601","repo":"oceans-next","pr":false,"stash":false,"f":5,"ins":165,"del":199,"lane":"am"},{"ld":"2026-06-29","d":"2026-06-29T10:43:50-07:00","tk":"DMAS-90694","repo":"onc","pr":false,"stash":false,"f":6,"ins":62,"del":7,"lane":"other"},{"ld":"2026-06-30","d":"2026-06-30T13:31:24-07:00","tk":"DMAS-90704","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":29,"del":2,"lane":"am"},{"ld":"2026-06-30","d":"2026-06-30T13:58:16-07:00","tk":"DMAS-90704","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":0,"del":3,"lane":"am"},{"ld":"2026-06-30","d":"2026-06-30T14:38:45-07:00","tk":"DMAS-90601","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":29,"del":27,"lane":"am"},{"ld":"2026-06-30","d":"2026-06-30T15:50:36-07:00","tk":"DMAS-90704","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":4,"del":20,"lane":"am"},{"ld":"2026-07-02","d":"2026-07-02T10:03:28-07:00","tk":"DMAS-90704","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":15,"del":0,"lane":"am"},{"ld":"2026-07-02","d":"2026-07-02T23:10:28Z","tk":"DMAS-90704","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"am"},{"ld":"2026-07-02","d":"2026-07-02T23:42:07Z","tk":"DMAS-90694","repo":"onc","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-07-03","d":"2026-07-03T15:00:25-07:00","tk":"DMAS-90674","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":6,"del":0,"lane":"uom"},{"ld":"2026-07-03","d":"2026-07-03T15:01:12-07:00","tk":"DMAS-90674","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":25,"del":1,"lane":"uom"},{"ld":"2026-07-03","d":"2026-07-03T15:02:07-07:00","tk":"DMAS-90674","repo":"oceans-next","pr":false,"stash":false,"f":8,"ins":861,"del":3,"lane":"uom"},{"ld":"2026-07-03","d":"2026-07-03T15:03:10-07:00","tk":"DMAS-90674","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":12,"del":1,"lane":"uom"},{"ld":"2026-07-03","d":"2026-07-03T15:14:28-07:00","tk":"DMAS-90674","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":6,"del":6,"lane":"uom"},{"ld":"2026-07-03","d":"2026-07-03T15:29:40-07:00","tk":"DMAS-90674","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":0,"del":157,"lane":"uom"},{"ld":"2026-07-03","d":"2026-07-03T21:05:43Z","tk":"DMAS-90601","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"am"},{"ld":"2026-07-06","d":"2026-07-06T10:43:24-07:00","tk":"DMAS-90789","repo":"onc","pr":false,"stash":false,"f":1,"ins":0,"del":1,"lane":"am"},{"ld":"2026-07-06","d":"2026-07-06T10:43:24-07:00","tk":"DMAS-90789","repo":"onc","pr":false,"stash":false,"f":1,"ins":0,"del":1,"lane":"am"},{"ld":"2026-07-06","d":"2026-07-06T14:34:09-07:00","tk":"DMAS-90789","repo":"onc","pr":false,"stash":true,"f":0,"ins":0,"del":0,"lane":"am"},{"ld":"2026-07-06","d":"2026-07-06T14:34:09-07:00","tk":"DMAS-90789","repo":"onc","pr":false,"stash":true,"f":0,"ins":0,"del":0,"lane":"am"},{"ld":"2026-07-06","d":"2026-07-06T22:50:10Z","tk":"DMAS-90789","repo":"onc","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"am"},{"ld":"2026-07-07","d":"2026-07-07T13:53:48-07:00","tk":"DMAS-90792","repo":"ui-testing","pr":false,"stash":false,"f":2,"ins":255,"del":2,"lane":"tests"},{"ld":"2026-07-07","d":"2026-07-07T16:04:42-07:00","tk":"DMAS-90674","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":42,"del":76,"lane":"uom"},{"ld":"2026-07-08","d":"2026-07-08T16:17:04-07:00","tk":"DMAS-90814","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":8,"del":0,"lane":"uom"},{"ld":"2026-07-08","d":"2026-07-08T16:17:56-07:00","tk":"DMAS-90814","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":89,"del":30,"lane":"uom"},{"ld":"2026-07-08","d":"2026-07-08T16:18:23-07:00","tk":"DMAS-90814","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":12,"del":1,"lane":"uom"},{"ld":"2026-07-09","d":"2026-07-09T08:49:32-07:00","tk":"DMAS-90814","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":136,"del":138,"lane":"uom"},{"ld":"2026-07-09","d":"2026-07-09T10:22:13-07:00","tk":"DMAS-90792","repo":"ui-testing","pr":false,"stash":false,"f":2,"ins":12,"del":10,"lane":"tests"},{"ld":"2026-07-09","d":"2026-07-09T11:16:15-07:00","tk":"DMAS-90815","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":7,"del":0,"lane":"other"},{"ld":"2026-07-09","d":"2026-07-09T11:16:15-07:00","tk":"DMAS-90815","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":7,"del":0,"lane":"other"},{"ld":"2026-07-09","d":"2026-07-09T15:13:41-07:00","tk":"DMAS-90835","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":1,"del":1,"lane":"uom"},{"ld":"2026-07-09","d":"2026-07-09T15:14:18-07:00","tk":"DMAS-90835","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":6,"del":0,"lane":"uom"},{"ld":"2026-07-09","d":"2026-07-09T15:14:32-07:00","tk":"DMAS-90835","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":10,"del":0,"lane":"uom"},{"ld":"2026-07-09","d":"2026-07-09T15:15:05-07:00","tk":"DMAS-90835","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":35,"del":3,"lane":"uom"},{"ld":"2026-07-09","d":"2026-07-09T15:15:20-07:00","tk":"DMAS-90835","repo":"oceans-next","pr":false,"stash":false,"f":6,"ins":763,"del":0,"lane":"uom"},{"ld":"2026-07-09","d":"2026-07-09T15:15:40-07:00","tk":"DMAS-90835","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":5,"del":0,"lane":"uom"},{"ld":"2026-07-09","d":"2026-07-09T15:16:11-07:00","tk":"DMAS-90835","repo":"onc","pr":false,"stash":false,"f":1,"ins":3,"del":1,"lane":"uom"},{"ld":"2026-07-09","d":"2026-07-09T15:16:30-07:00","tk":"DMAS-90835","repo":"onc","pr":false,"stash":false,"f":1,"ins":32,"del":0,"lane":"uom"},{"ld":"2026-07-09","d":"2026-07-09T15:16:50-07:00","tk":"DMAS-90835","repo":"onc","pr":false,"stash":false,"f":1,"ins":4,"del":2,"lane":"uom"},{"ld":"2026-07-09","d":"2026-07-09T15:50:22-07:00","tk":"DMAS-90814","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":136,"del":136,"lane":"uom"},{"ld":"2026-07-09","d":"2026-07-09T16:04:18-07:00","tk":"DMAS-90835","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":42,"del":8,"lane":"uom"},{"ld":"2026-07-09","d":"2026-07-09T16:04:46-07:00","tk":"DMAS-90835","repo":"onc","pr":false,"stash":false,"f":2,"ins":56,"del":1,"lane":"uom"},{"ld":"2026-07-09","d":"2026-07-09T18:42:36Z","tk":"DMAS-90792","repo":"ui-testing","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"tests"},{"ld":"2026-07-10","d":"2026-07-10T09:54:19-07:00","tk":"DMAS-90835","repo":"onc","pr":false,"stash":false,"f":1,"ins":4,"del":2,"lane":"uom"},{"ld":"2026-07-10","d":"2026-07-10T12:00:19-07:00","tk":"DMAS-90835","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":5,"del":1,"lane":"uom"},{"ld":"2026-07-10","d":"2026-07-10T12:15:34-07:00","tk":"DMAS-90835","repo":"onc","pr":false,"stash":false,"f":3,"ins":5,"del":8,"lane":"uom"},{"ld":"2026-07-10","d":"2026-07-10T16:33:26-07:00","tk":"DMAS-90852","repo":"oceans-next","pr":false,"stash":false,"f":5,"ins":490,"del":14,"lane":"am"},{"ld":"2026-07-10","d":"2026-07-10T16:33:26-07:00","tk":"DMAS-90852","repo":"oceans-next","pr":false,"stash":false,"f":5,"ins":538,"del":26,"lane":"am"},{"ld":"2026-07-10","d":"2026-07-10T16:33:26-07:00","tk":"DMAS-90852","repo":"oceans-next","pr":false,"stash":false,"f":5,"ins":490,"del":14,"lane":"am"},{"ld":"2026-07-10","d":"2026-07-10T21:35:35Z","tk":"DMAS-90815","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-07-10","d":"2026-07-10T21:35:36Z","tk":"","repo":"oceans-next","pr":false,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-07-13","d":"2026-07-13T11:41:14-07:00","tk":"DMAS-90858","repo":"onc","pr":false,"stash":false,"f":3,"ins":516,"del":1,"lane":"am"},{"ld":"2026-07-13","d":"2026-07-13T11:41:14-07:00","tk":"DMAS-90858","repo":"onc","pr":false,"stash":false,"f":3,"ins":516,"del":1,"lane":"am"},{"ld":"2026-07-13","d":"2026-07-13T13:00:18-07:00","tk":"DMAS-90852","repo":"oceans-next","pr":false,"stash":false,"f":0,"ins":0,"del":0,"lane":"am"},{"ld":"2026-07-13","d":"2026-07-13T13:02:39-07:00","tk":"DMAS-90814","repo":"oceans-next","pr":false,"stash":false,"f":0,"ins":0,"del":0,"lane":"uom"},{"ld":"2026-07-13","d":"2026-07-13T13:02:40-07:00","tk":"DMAS-90835","repo":"oceans-next","pr":false,"stash":false,"f":0,"ins":0,"del":0,"lane":"uom"},{"ld":"2026-07-13","d":"2026-07-13T13:03:44-07:00","tk":"DMAS-90858","repo":"onc","pr":false,"stash":true,"f":0,"ins":0,"del":0,"lane":"am"},{"ld":"2026-07-13","d":"2026-07-13T13:03:44-07:00","tk":"DMAS-90858","repo":"onc","pr":false,"stash":true,"f":0,"ins":0,"del":0,"lane":"am"},{"ld":"2026-07-13","d":"2026-07-13T13:03:46-07:00","tk":"DMAS-90835","repo":"onc","pr":false,"stash":false,"f":0,"ins":0,"del":0,"lane":"uom"},{"ld":"2026-07-13","d":"2026-07-13T13:04:03-07:00","tk":"DMAS-90858","repo":"onc","pr":false,"stash":false,"f":0,"ins":0,"del":0,"lane":"am"},{"ld":"2026-07-14","d":"2026-07-14T15:18:36-07:00","tk":"","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":38,"del":33,"lane":"other"},{"ld":"2026-07-14","d":"2026-07-14T15:18:37-07:00","tk":"","repo":"oceans-next","pr":false,"stash":false,"f":10,"ins":739,"del":2,"lane":"other"},{"ld":"2026-07-14","d":"2026-07-14T15:35:49-07:00","tk":"DMAS-90814","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":23,"del":31,"lane":"uom"},{"ld":"2026-07-14","d":"2026-07-14T15:35:49-07:00","tk":"DMAS-90814","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":23,"del":31,"lane":"uom"},{"ld":"2026-07-14","d":"2026-07-14T16:01:57-07:00","tk":"DMAS-90835","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":13,"del":2,"lane":"uom"},{"ld":"2026-07-15","d":"2026-07-15T11:39:27-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":10,"ins":735,"del":1,"lane":"am"},{"ld":"2026-07-15","d":"2026-07-15T11:39:27-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":10,"ins":735,"del":1,"lane":"am"},{"ld":"2026-07-15","d":"2026-07-15T11:39:27-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":10,"ins":736,"del":2,"lane":"am"},{"ld":"2026-07-15","d":"2026-07-15T11:58:41-07:00","tk":"DMAS-90835","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":19,"del":49,"lane":"uom"},{"ld":"2026-07-15","d":"2026-07-15T12:09:15-07:00","tk":"DMAS-90814","repo":"oceans-next","pr":false,"stash":false,"f":5,"ins":38,"del":33,"lane":"uom"},{"ld":"2026-07-15","d":"2026-07-15T12:09:15-07:00","tk":"DMAS-90814","repo":"oceans-next","pr":false,"stash":false,"f":5,"ins":38,"del":33,"lane":"uom"},{"ld":"2026-07-15","d":"2026-07-15T12:15:11-07:00","tk":"DMAS-90852","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":11,"del":50,"lane":"am"},{"ld":"2026-07-15","d":"2026-07-15T12:15:11-07:00","tk":"DMAS-90852","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":11,"del":50,"lane":"am"},{"ld":"2026-07-15","d":"2026-07-15T15:20:06-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":32,"del":20,"lane":"am"},{"ld":"2026-07-15","d":"2026-07-15T15:20:06-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":32,"del":20,"lane":"am"},{"ld":"2026-07-15","d":"2026-07-15T15:20:06-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":32,"del":20,"lane":"am"},{"ld":"2026-07-16","d":"2026-07-16T09:51:42-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":8,"ins":220,"del":10,"lane":"am"},{"ld":"2026-07-16","d":"2026-07-16T09:51:42-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":8,"ins":220,"del":10,"lane":"am"},{"ld":"2026-07-16","d":"2026-07-16T09:51:42-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":8,"ins":220,"del":10,"lane":"am"},{"ld":"2026-07-16","d":"2026-07-16T11:45:46-07:00","tk":"DMAS-90903","repo":"database","pr":false,"stash":false,"f":1,"ins":16,"del":0,"lane":"uom"},{"ld":"2026-07-16","d":"2026-07-16T19:11:17Z","tk":"DMAS-90814","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"uom"},{"ld":"2026-07-17","d":"2026-07-17T10:27:28-07:00","tk":"DMAS-90835","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":14,"del":16,"lane":"uom"},{"ld":"2026-07-17","d":"2026-07-17T10:57:33-07:00","tk":"DMAS-90852","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":3,"del":3,"lane":"am"},{"ld":"2026-07-17","d":"2026-07-17T10:57:33-07:00","tk":"DMAS-90852","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":3,"del":3,"lane":"am"},{"ld":"2026-07-17","d":"2026-07-17T12:07:25-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":3,"del":4,"lane":"am"},{"ld":"2026-07-17","d":"2026-07-17T12:07:25-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":3,"del":4,"lane":"am"},{"ld":"2026-07-17","d":"2026-07-17T12:07:25-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":3,"del":4,"lane":"am"},{"ld":"2026-07-17","d":"2026-07-17T13:07:45-07:00","tk":"DMAS-90927","repo":"database","pr":false,"stash":false,"f":1,"ins":16,"del":0,"lane":"uom"},{"ld":"2026-07-17","d":"2026-07-17T18:26:24Z","tk":"DMAS-90835","repo":"onc","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"uom"},{"ld":"2026-07-17","d":"2026-07-17T18:26:30Z","tk":"DMAS-90835","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"uom"},{"ld":"2026-07-20","d":"2026-07-20T10:16:06-07:00","tk":"DMAS-90186","repo":"database","pr":false,"stash":true,"f":0,"ins":0,"del":0,"lane":"sensorattr"},{"ld":"2026-07-20","d":"2026-07-20T10:16:06-07:00","tk":"DMAS-90186","repo":"database","pr":false,"stash":true,"f":0,"ins":0,"del":0,"lane":"sensorattr"},{"ld":"2026-07-20","d":"2026-07-20T11:13:12-07:00","tk":"DMAS-90903","repo":"oceans-next","pr":false,"stash":false,"f":7,"ins":100,"del":7,"lane":"uom"},{"ld":"2026-07-20","d":"2026-07-20T11:44:14-07:00","tk":"DMAS-90903","repo":"onc","pr":false,"stash":false,"f":5,"ins":126,"del":5,"lane":"uom"},{"ld":"2026-07-20","d":"2026-07-20T13:38:08-07:00","tk":"DMAS-90903","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":103,"del":1,"lane":"uom"},{"ld":"2026-07-20","d":"2026-07-20T14:17:57-07:00","tk":"DMAS-90903","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":1,"del":78,"lane":"uom"},{"ld":"2026-07-20","d":"2026-07-20T14:31:37-07:00","tk":"DMAS-90939","repo":"database","pr":false,"stash":false,"f":1,"ins":13,"del":0,"lane":"uom"},{"ld":"2026-07-20","d":"2026-07-20T18:22:26Z","tk":"DMAS-90927","repo":"database","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"uom"},{"ld":"2026-07-20","d":"2026-07-20T21:54:47Z","tk":"DMAS-90939","repo":"database","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"uom"},{"ld":"2026-07-21","d":"2026-07-21T10:04:14-07:00","tk":"DMAS-90852","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":56,"del":6,"lane":"am"},{"ld":"2026-07-21","d":"2026-07-21T10:19:11-07:00","tk":"DMAS-90852","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":11,"del":10,"lane":"am"},{"ld":"2026-07-21","d":"2026-07-21T11:36:05-07:00","tk":"DMAS-90903","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":5,"del":11,"lane":"uom"},{"ld":"2026-07-21","d":"2026-07-21T13:36:56-07:00","tk":"DMAS-90852","repo":"oceans-next","pr":false,"stash":false,"f":5,"ins":60,"del":25,"lane":"am"},{"ld":"2026-07-21","d":"2026-07-21T13:47:21-07:00","tk":"DMAS-90903","repo":"onc","pr":false,"stash":false,"f":2,"ins":41,"del":7,"lane":"uom"},{"ld":"2026-07-22","d":"2026-07-22T13:51:19-07:00","tk":"DMAS-90903","repo":"oceans-next","pr":false,"stash":false,"f":5,"ins":29,"del":27,"lane":"uom"},{"ld":"2026-07-22","d":"2026-07-22T13:54:32-07:00","tk":"DMAS-90903","repo":"onc","pr":false,"stash":false,"f":6,"ins":57,"del":109,"lane":"uom"},{"ld":"2026-07-22","d":"2026-07-22T20:19:34Z","tk":"DMAS-90852","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"am"},{"ld":"2026-07-23","d":"2026-07-23T10:22:35-07:00","tk":"DMAS-90976","repo":"onc","pr":false,"stash":false,"f":3,"ins":7,"del":7,"lane":"uom"},{"ld":"2026-07-23","d":"2026-07-23T12:14:09-07:00","tk":"DMAS-90903","repo":"onc","pr":false,"stash":false,"f":1,"ins":18,"del":0,"lane":"uom"},{"ld":"2026-07-23","d":"2026-07-23T15:54:32-07:00","tk":"DMAS-90903","repo":"onc","pr":false,"stash":false,"f":1,"ins":3,"del":3,"lane":"uom"},{"ld":"2026-07-23","d":"2026-07-23T19:04:29Z","tk":"DMAS-90976","repo":"onc","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"uom"},{"ld":"2026-07-24","d":"2026-07-24T11:17:05-07:00","tk":"DMAS-90903","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":21,"del":8,"lane":"uom"},{"ld":"2026-07-27","d":"2026-07-27T15:00:25-07:00","tk":"DMAS-91007","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":91,"del":13,"lane":"uom"},{"ld":"2026-07-27","d":"2026-07-27T18:13:14Z","tk":"DMAS-90903","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"uom"},{"ld":"2026-07-27","d":"2026-07-27T18:13:21Z","tk":"DMAS-90903","repo":"onc","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"uom"},{"ld":"2026-07-28","d":"2026-07-28T13:26:23-07:00","tk":"DMAS-91016","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":18,"del":1,"lane":"uom"},{"ld":"2026-07-28","d":"2026-07-28T14:40:50-07:00","tk":"DMAS-91007","repo":"onc","pr":false,"stash":false,"f":1,"ins":1,"del":1,"lane":"uom"},{"ld":"2026-07-28","d":"2026-07-28T14:45:26-07:00","tk":"DMAS-91007","repo":"oceans-next","pr":false,"stash":false,"f":5,"ins":46,"del":65,"lane":"uom"},{"ld":"2026-07-28","d":"2026-07-28T15:50:33-07:00","tk":"DMAS-91007","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":11,"del":11,"lane":"uom"},{"ld":"2026-07-29","d":"2026-07-29T10:34:14-07:00","tk":"DMAS-91007","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":0,"del":3,"lane":"uom"},{"ld":"2026-07-29","d":"2026-07-29T11:23:57-07:00","tk":"DMAS-91030","repo":"onc","pr":false,"stash":false,"f":1,"ins":0,"del":1,"lane":"cables"},{"ld":"2026-07-29","d":"2026-07-29T11:24:42-07:00","tk":"DMAS-91030","repo":"ui-testing","pr":false,"stash":false,"f":2,"ins":0,"del":2,"lane":"cables"},{"ld":"2026-07-29","d":"2026-07-29T14:14:49-07:00","tk":"DMAS-90975","repo":"oceans-next","pr":false,"stash":false,"f":31,"ins":2,"del":3242,"lane":"cables"},{"ld":"2026-07-29","d":"2026-07-29T14:50:17-07:00","tk":"DMAS-91030","repo":"ui-testing","pr":false,"stash":false,"f":2,"ins":0,"del":2,"lane":"cables"},{"ld":"2026-07-29","d":"2026-07-29T14:53:55-07:00","tk":"DMAS-90975","repo":"onc","pr":false,"stash":false,"f":11,"ins":2,"del":1743,"lane":"cables"},{"ld":"2026-07-29","d":"2026-07-29T17:11:07Z","tk":"DMAS-91016","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"uom"},{"ld":"2026-07-30","d":"2026-07-30T09:53:07-07:00","tk":"DMAS-91030","repo":"ui-testing","pr":false,"stash":false,"f":1,"ins":0,"del":292,"lane":"cables"},{"ld":"2026-07-30","d":"2026-07-30T10:21:17-07:00","tk":"DMAS-91030","repo":"ui-testing","pr":false,"stash":false,"f":13,"ins":0,"del":522,"lane":"cables"},{"ld":"2026-07-30","d":"2026-07-30T15:46:20Z","tk":"DMAS-91030","repo":"onc","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"cables"},{"ld":"2026-07-31","d":"2026-07-31T10:33:11-07:00","tk":"DMAS-91007","repo":"onc","pr":false,"stash":false,"f":1,"ins":1,"del":1,"lane":"uom"},{"ld":"2026-07-31","d":"2026-07-31T12:41:14-07:00","tk":"DMAS-90998","repo":"onc","pr":false,"stash":false,"f":2,"ins":2,"del":1,"lane":"uom"},{"ld":"2026-07-31","d":"2026-07-31T14:31:24Z","tk":"DMAS-91030","repo":"ui-testing","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"cables"},{"ld":"2026-07-31","d":"2026-07-31T17:47:33Z","tk":"DMAS-91007","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"uom"},{"ld":"2026-07-31","d":"2026-07-31T21:05:25Z","tk":"DMAS-90975","repo":"onc","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"cables"},{"ld":"2026-07-31","d":"2026-07-31T21:49:30Z","tk":"DMAS-90998","repo":"onc","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"uom"},{"ld":"2026-08-04","d":"2026-08-04T22:27:41Z","tk":"","repo":"onc","pr":false,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-08-05","d":"2026-08-05T10:43:08-07:00","tk":"DMAS-91089","repo":"ui-testing","pr":false,"stash":false,"f":8,"ins":464,"del":0,"lane":"tests"},{"ld":"2026-08-05","d":"2026-08-05T20:46:39Z","tk":"DMAS-90975","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"cables"},{"ld":"2026-08-06","d":"2026-08-06T10:34:37-07:00","tk":"DMAS-91089","repo":"ui-testing","pr":false,"stash":false,"f":3,"ins":48,"del":62,"lane":"tests"},{"ld":"2026-08-07","d":"2026-08-07T10:44:48-07:00","tk":"DMAS-90973","repo":"database","pr":false,"stash":false,"f":1,"ins":15,"del":0,"lane":"cables"},{"ld":"2026-08-07","d":"2026-08-07T14:57:44-07:00","tk":"DMAS-91089","repo":"ui-testing","pr":false,"stash":false,"f":1,"ins":7,"del":7,"lane":"tests"},{"ld":"2026-08-10","d":"2026-08-10T10:11:59-07:00","tk":"DMAS-90973","repo":"database","pr":false,"stash":false,"f":1,"ins":2,"del":8,"lane":"cables"},{"ld":"2026-08-10","d":"2026-08-10T11:17:59-07:00","tk":"DMAS-91024","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":451,"del":385,"lane":"other"},{"ld":"2026-08-10","d":"2026-08-10T15:58:46-07:00","tk":"DMAS-91024","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":18,"del":20,"lane":"other"},{"ld":"2026-08-10","d":"2026-08-10T22:18:04Z","tk":"DMAS-90973","repo":"database","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"cables"},{"ld":"2026-08-11","d":"2026-08-11T10:40:24-07:00","tk":"DMAS-91024","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":2,"del":2,"lane":"other"},{"ld":"2026-08-11","d":"2026-08-11T12:22:33-07:00","tk":"DMAS-90858","repo":"onc","pr":false,"stash":false,"f":2,"ins":85,"del":37,"lane":"am"},{"ld":"2026-08-11","d":"2026-08-11T13:42:38-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":6,"ins":402,"del":232,"lane":"am"},{"ld":"2026-08-11","d":"2026-08-11T13:42:38-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":6,"ins":402,"del":232,"lane":"am"},{"ld":"2026-08-11","d":"2026-08-11T14:31:12-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":8,"ins":42,"del":24,"lane":"am"},{"ld":"2026-08-11","d":"2026-08-11T14:31:12-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":8,"ins":42,"del":24,"lane":"am"},{"ld":"2026-08-11","d":"2026-08-11T15:03:25-07:00","tk":"DMAS-90858","repo":"onc","pr":false,"stash":false,"f":1,"ins":9,"del":11,"lane":"am"},{"ld":"2026-08-11","d":"2026-08-11T15:15:16-07:00","tk":"DMAS-90858","repo":"onc","pr":false,"stash":false,"f":1,"ins":2,"del":3,"lane":"am"},{"ld":"2026-08-11","d":"2026-08-11T15:57:30-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":3,"del":3,"lane":"am"},{"ld":"2026-08-11","d":"2026-08-11T15:57:30-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":3,"del":3,"lane":"am"},{"ld":"2026-08-11","d":"2026-08-11T17:24:57Z","tk":"DMAS-91089","repo":"ui-testing","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"tests"},{"ld":"2026-08-12","d":"2026-08-12T12:06:45-07:00","tk":"DMAS-90858","repo":"onc","pr":false,"stash":false,"f":2,"ins":80,"del":2,"lane":"am"},{"ld":"2026-08-12","d":"2026-08-12T22:05:22Z","tk":"DMAS-91024","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"other"},{"ld":"2026-08-13","d":"2026-08-13T10:06:36-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":136,"del":64,"lane":"am"},{"ld":"2026-08-13","d":"2026-08-13T10:06:36-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":136,"del":64,"lane":"am"},{"ld":"2026-08-13","d":"2026-08-13T10:10:13-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":9,"ins":169,"del":49,"lane":"am"},{"ld":"2026-08-13","d":"2026-08-13T10:10:13-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":9,"ins":169,"del":49,"lane":"am"},{"ld":"2026-08-13","d":"2026-08-13T11:53:56-07:00","tk":"DMAS-91193","repo":"database","pr":false,"stash":false,"f":4,"ins":105,"del":0,"lane":"am"},{"ld":"2026-08-14","d":"2026-08-14T11:58:55-07:00","tk":"DMAS-91208","repo":"database","pr":false,"stash":false,"f":4,"ins":105,"del":0,"lane":"am"},{"ld":"2026-08-14","d":"2026-08-14T13:52:48-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":11,"del":11,"lane":"am"},{"ld":"2026-08-14","d":"2026-08-14T13:52:48-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":11,"del":11,"lane":"am"},{"ld":"2026-08-14","d":"2026-08-14T13:53:44-07:00","tk":"DMAS-90858","repo":"onc","pr":false,"stash":false,"f":2,"ins":6,"del":10,"lane":"am"},{"ld":"2026-08-14","d":"2026-08-14T15:36:51-07:00","tk":"DMAS-91224","repo":"oceans-next","pr":false,"stash":false,"f":5,"ins":459,"del":449,"lane":"am"},{"ld":"2026-08-14","d":"2026-08-14T15:36:51-07:00","tk":"DMAS-91224","repo":"oceans-next","pr":false,"stash":false,"f":5,"ins":459,"del":449,"lane":"am"},{"ld":"2026-08-17","d":"2026-08-17T10:32:56-07:00","tk":"DMAS-91224","repo":"oceans-next","pr":false,"stash":false,"f":6,"ins":200,"del":94,"lane":"am"},{"ld":"2026-08-17","d":"2026-08-17T10:32:56-07:00","tk":"DMAS-91224","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":203,"del":94,"lane":"am"},{"ld":"2026-08-17","d":"2026-08-17T16:05:48-07:00","tk":"DMAS-91224","repo":"oceans-next","pr":false,"stash":true,"f":0,"ins":0,"del":0,"lane":"am"},{"ld":"2026-08-17","d":"2026-08-17T16:05:48-07:00","tk":"DMAS-91224","repo":"oceans-next","pr":false,"stash":true,"f":0,"ins":0,"del":0,"lane":"am"},{"ld":"2026-08-17","d":"2026-08-17T16:05:48-07:00","tk":"DMAS-91224","repo":"oceans-next","pr":false,"stash":false,"f":6,"ins":1299,"del":0,"lane":"am"},{"ld":"2026-08-17","d":"2026-08-17T16:29:06Z","tk":"DMAS-91208","repo":"database","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"am"},{"ld":"2026-08-17","d":"2026-08-17T16:29:49Z","tk":"DMAS-91193","repo":"database","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"am"},{"ld":"2026-08-18","d":"2026-08-18T10:44:49-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":9,"ins":141,"del":84,"lane":"am"},{"ld":"2026-08-18","d":"2026-08-18T13:46:18-07:00","tk":"DMAS-91231","repo":"oceans-next","pr":false,"stash":false,"f":14,"ins":1474,"del":2,"lane":"am"},{"ld":"2026-08-18","d":"2026-08-18T14:03:20-07:00","tk":"DMAS-91231","repo":"oceans-next","pr":false,"stash":false,"f":2,"ins":45,"del":18,"lane":"am"},{"ld":"2026-08-18","d":"2026-08-18T16:01:39-07:00","tk":"DMAS-91230","repo":"onc","pr":false,"stash":false,"f":5,"ins":738,"del":5,"lane":"am"},{"ld":"2026-08-18","d":"2026-08-18T16:09:50-07:00","tk":"DMAS-91230","repo":"onc","pr":false,"stash":false,"f":1,"ins":23,"del":0,"lane":"am"},{"ld":"2026-08-18","d":"2026-08-18T16:16:26Z","tk":"DMAS-90858","repo":"onc","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"am"},{"ld":"2026-08-19","d":"2026-08-19T10:53:56-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":3,"ins":23,"del":4,"lane":"am"},{"ld":"2026-08-19","d":"2026-08-19T13:35:58-07:00","tk":"DMAS-91231","repo":"oceans-next","pr":false,"stash":false,"f":6,"ins":58,"del":42,"lane":"am"},{"ld":"2026-08-19","d":"2026-08-19T13:55:54-07:00","tk":"DMAS-91231","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":15,"del":22,"lane":"am"},{"ld":"2026-08-19","d":"2026-08-19T14:47:14-07:00","tk":"DMAS-83662","repo":"database","pr":false,"stash":false,"f":1,"ins":11,"del":0,"lane":"am"},{"ld":"2026-08-20","d":"2026-08-20T08:52:15-07:00","tk":"DMAS-83639","repo":"database","pr":false,"stash":false,"f":1,"ins":7,"del":0,"lane":"am"},{"ld":"2026-08-20","d":"2026-08-20T09:54:45-07:00","tk":"DMAS-91147","repo":"web-service-testing","pr":false,"stash":false,"f":9,"ins":373,"del":0,"lane":"tests"},{"ld":"2026-08-20","d":"2026-08-20T15:24:05-07:00","tk":"DMAS-91231","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":2,"del":1,"lane":"am"},{"ld":"2026-08-20","d":"2026-08-20T15:27:57-07:00","tk":"DMAS-90877","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":2,"del":1,"lane":"am"},{"ld":"2026-08-21","d":"2026-08-21T15:01:47-07:00","tk":"DMAS-91231","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":3,"del":0,"lane":"am"},{"ld":"2026-08-24","d":"2026-08-24T10:52:06-07:00","tk":"DMAS-91224","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":18,"del":27,"lane":"am"},{"ld":"2026-08-24","d":"2026-08-24T11:03:16-07:00","tk":"DMAS-91231","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":9,"del":9,"lane":"am"},{"ld":"2026-08-24","d":"2026-08-24T11:05:24-07:00","tk":"DMAS-91230","repo":"onc","pr":false,"stash":false,"f":2,"ins":47,"del":1,"lane":"am"},{"ld":"2026-08-24","d":"2026-08-24T11:17:47-07:00","tk":"DMAS-91224","repo":"oceans-next","pr":false,"stash":false,"f":1,"ins":4,"del":2,"lane":"am"},{"ld":"2026-08-24","d":"2026-08-24T14:58:14-07:00","tk":"DMAS-91267","repo":"ui-testing","pr":false,"stash":false,"f":17,"ins":1462,"del":0,"lane":"tests"},{"ld":"2026-08-24","d":"2026-08-24T15:13:27-07:00","tk":"DMAS-91276","repo":"ui-testing","pr":false,"stash":false,"f":1,"ins":293,"del":0,"lane":"tests"},{"ld":"2026-08-24","d":"2026-08-24T15:15:08-07:00","tk":"DMAS-91277","repo":"ui-testing","pr":false,"stash":false,"f":1,"ins":340,"del":0,"lane":"tests"},{"ld":"2026-08-24","d":"2026-08-24T15:35:15-07:00","tk":"DMAS-91283","repo":"oceans-next","pr":false,"stash":false,"f":8,"ins":99,"del":33,"lane":"am"},{"ld":"2026-08-24","d":"2026-08-24T15:41:41-07:00","tk":"DMAS-91283","repo":"onc","pr":false,"stash":false,"f":4,"ins":78,"del":26,"lane":"am"},{"ld":"2026-08-24","d":"2026-08-24T16:19:33-07:00","tk":"DMAS-91230","repo":"onc","pr":false,"stash":false,"f":2,"ins":26,"del":49,"lane":"am"},{"ld":"2026-08-24","d":"2026-08-24T16:27:12-07:00","tk":"DMAS-91283","repo":"onc","pr":false,"stash":false,"f":3,"ins":22,"del":41,"lane":"am"},{"ld":"2026-08-24","d":"2026-08-24T16:53:23Z","tk":"DMAS-90877","repo":"oceans-next","pr":true,"stash":false,"f":0,"ins":0,"del":0,"lane":"am"},{"ld":"2026-08-25","d":"2026-08-25T09:07:41-07:00","tk":"DMAS-91231","repo":"oceans-next","pr":false,"stash":false,"f":4,"ins":32,"del":20,"lane":"am"},{"ld":"2026-08-25","d":"2026-08-25T10:26:58-07:00","tk":"DMAS-91283","repo":"onc","pr":false,"stash":false,"f":2,"ins":2,"del":1,"lane":"am"}],"daily":{"2026-01-27":{"n":2,"ins":6,"del":1},"2026-01-30":{"n":2,"ins":3,"del":5},"2026-02-02":{"n":1,"ins":12,"del":7},"2026-02-03":{"n":1,"ins":2,"del":5},"2026-02-04":{"n":1,"ins":0,"del":0},"2026-02-06":{"n":3,"ins":7,"del":3},"2026-02-09":{"n":3,"ins":34,"del":23},"2026-02-10":{"n":8,"ins":73,"del":36},"2026-02-11":{"n":4,"ins":35,"del":5},"2026-02-12":{"n":1,"ins":0,"del":0},"2026-02-13":{"n":2,"ins":0,"del":0},"2026-02-17":{"n":5,"ins":24,"del":12},"2026-02-18":{"n":3,"ins":7,"del":0},"2026-02-19":{"n":2,"ins":188,"del":173},"2026-02-20":{"n":3,"ins":34,"del":33},"2026-02-23":{"n":2,"ins":120,"del":50},"2026-02-24":{"n":7,"ins":31,"del":38},"2026-02-25":{"n":4,"ins":51,"del":41},"2026-02-26":{"n":5,"ins":19,"del":25},"2026-02-27":{"n":5,"ins":4,"del":9},"2026-03-02":{"n":4,"ins":4,"del":5},"2026-03-03":{"n":3,"ins":109,"del":123},"2026-03-04":{"n":3,"ins":47,"del":33},"2026-03-06":{"n":1,"ins":0,"del":0},"2026-03-10":{"n":4,"ins":655,"del":312},"2026-03-12":{"n":3,"ins":101,"del":13},"2026-03-16":{"n":5,"ins":18,"del":412},"2026-03-17":{"n":1,"ins":61,"del":25},"2026-03-18":{"n":2,"ins":109,"del":0},"2026-03-19":{"n":2,"ins":324,"del":6},"2026-03-20":{"n":2,"ins":10,"del":3},"2026-03-23":{"n":2,"ins":3,"del":5},"2026-03-24":{"n":4,"ins":243,"del":243},"2026-03-25":{"n":3,"ins":19,"del":10},"2026-03-26":{"n":5,"ins":2,"del":1},"2026-03-30":{"n":14,"ins":3454,"del":1525},"2026-04-01":{"n":3,"ins":369,"del":586},"2026-04-08":{"n":4,"ins":2610,"del":313},"2026-04-09":{"n":1,"ins":36,"del":88},"2026-04-10":{"n":1,"ins":27,"del":142},"2026-04-13":{"n":2,"ins":170,"del":0},"2026-04-14":{"n":6,"ins":1018,"del":63},"2026-04-15":{"n":4,"ins":16,"del":20},"2026-04-16":{"n":2,"ins":0,"del":0},"2026-04-17":{"n":2,"ins":58,"del":76},"2026-04-20":{"n":5,"ins":363,"del":267},"2026-04-21":{"n":4,"ins":95,"del":81},"2026-04-24":{"n":6,"ins":3270,"del":843},"2026-04-27":{"n":13,"ins":494,"del":45},"2026-04-28":{"n":12,"ins":287,"del":168},"2026-04-30":{"n":10,"ins":1429,"del":107},"2026-05-01":{"n":4,"ins":150,"del":184},"2026-05-04":{"n":5,"ins":60,"del":84},"2026-05-05":{"n":8,"ins":320,"del":34},"2026-05-06":{"n":5,"ins":409,"del":91},"2026-05-07":{"n":10,"ins":30,"del":53},"2026-05-08":{"n":3,"ins":59,"del":38},"2026-05-11":{"n":5,"ins":65,"del":65},"2026-05-12":{"n":3,"ins":1,"del":1},"2026-05-13":{"n":2,"ins":82,"del":42},"2026-05-15":{"n":3,"ins":966,"del":100},"2026-05-19":{"n":8,"ins":499,"del":35},"2026-05-20":{"n":7,"ins":897,"del":431},"2026-05-21":{"n":1,"ins":36,"del":45},"2026-05-22":{"n":3,"ins":274,"del":62},"2026-05-26":{"n":2,"ins":2,"del":2},"2026-05-27":{"n":3,"ins":76,"del":72},"2026-05-29":{"n":2,"ins":0,"del":0},"2026-06-03":{"n":4,"ins":535,"del":230},"2026-06-04":{"n":1,"ins":58,"del":22},"2026-06-05":{"n":2,"ins":65,"del":119},"2026-06-08":{"n":1,"ins":0,"del":0},"2026-06-09":{"n":2,"ins":690,"del":380},"2026-06-10":{"n":1,"ins":2,"del":2},"2026-06-11":{"n":1,"ins":113,"del":45},"2026-06-12":{"n":1,"ins":41,"del":0},"2026-06-15":{"n":3,"ins":145,"del":309},"2026-06-16":{"n":3,"ins":1393,"del":1},"2026-06-17":{"n":4,"ins":249,"del":119},"2026-06-18":{"n":2,"ins":314,"del":116},"2026-06-19":{"n":6,"ins":102,"del":80},"2026-06-22":{"n":5,"ins":271,"del":137},"2026-06-23":{"n":2,"ins":150,"del":85},"2026-06-24":{"n":5,"ins":35,"del":33},"2026-06-25":{"n":2,"ins":0,"del":0},"2026-06-26":{"n":1,"ins":165,"del":199},"2026-06-29":{"n":1,"ins":62,"del":7},"2026-06-30":{"n":4,"ins":62,"del":52},"2026-07-02":{"n":3,"ins":15,"del":0},"2026-07-03":{"n":7,"ins":910,"del":168},"2026-07-06":{"n":5,"ins":0,"del":2},"2026-07-07":{"n":2,"ins":297,"del":78},"2026-07-08":{"n":3,"ins":109,"del":31},"2026-07-09":{"n":17,"ins":1255,"del":300},"2026-07-10":{"n":8,"ins":1532,"del":65},"2026-07-13":{"n":9,"ins":1032,"del":2},"2026-07-14":{"n":5,"ins":836,"del":99},"2026-07-15":{"n":11,"ins":2419,"del":279},"2026-07-16":{"n":5,"ins":676,"del":30},"2026-07-17":{"n":9,"ins":45,"del":34},"2026-07-20":{"n":9,"ins":343,"del":91},"2026-07-21":{"n":5,"ins":173,"del":59},"2026-07-22":{"n":3,"ins":86,"del":136},"2026-07-23":{"n":4,"ins":28,"del":10},"2026-07-24":{"n":1,"ins":21,"del":8},"2026-07-27":{"n":3,"ins":91,"del":13},"2026-07-28":{"n":4,"ins":76,"del":78},"2026-07-29":{"n":7,"ins":4,"del":4993},"2026-07-30":{"n":3,"ins":0,"del":814},"2026-07-31":{"n":6,"ins":3,"del":2},"2026-08-04":{"n":1,"ins":0,"del":0},"2026-08-05":{"n":2,"ins":464,"del":0},"2026-08-06":{"n":1,"ins":48,"del":62},"2026-08-07":{"n":2,"ins":22,"del":7},"2026-08-10":{"n":4,"ins":471,"del":413},"2026-08-11":{"n":11,"ins":992,"del":571},"2026-08-12":{"n":2,"ins":80,"del":2},"2026-08-13":{"n":5,"ins":715,"del":226},"2026-08-14":{"n":6,"ins":1051,"del":930},"2026-08-17":{"n":7,"ins":1702,"del":188},"2026-08-18":{"n":6,"ins":2421,"del":109},"2026-08-19":{"n":4,"ins":107,"del":68},"2026-08-20":{"n":4,"ins":384,"del":2},"2026-08-21":{"n":1,"ins":3,"del":0},"2026-08-24":{"n":12,"ins":2398,"del":188},"2026-08-25":{"n":2,"ins":34,"del":21}},"weekly":{"2026-01-26":{"ins":9,"del":6,"n":2},"2026-02-02":{"ins":21,"del":15,"n":4},"2026-02-09":{"ins":142,"del":64,"n":12},"2026-02-16":{"ins":253,"del":218,"n":11},"2026-02-23":{"ins":225,"del":163,"n":20},"2026-03-02":{"ins":160,"del":161,"n":8},"2026-03-09":{"ins":756,"del":325,"n":7},"2026-03-16":{"ins":522,"del":446,"n":9},"2026-03-23":{"ins":267,"del":259,"n":8},"2026-03-30":{"ins":3823,"del":2111,"n":17},"2026-04-06":{"ins":2673,"del":543,"n":6},"2026-04-13":{"ins":1262,"del":159,"n":14},"2026-04-20":{"ins":3728,"del":1191,"n":14},"2026-04-27":{"ins":2360,"del":504,"n":36},"2026-05-04":{"ins":878,"del":300,"n":29},"2026-05-11":{"ins":1114,"del":208,"n":11},"2026-05-18":{"ins":1706,"del":573,"n":18},"2026-05-25":{"ins":78,"del":74,"n":5},"2026-06-01":{"ins":658,"del":371,"n":6},"2026-06-08":{"ins":846,"del":427,"n":5},"2026-06-15":{"ins":2203,"del":625,"n":15},"2026-06-22":{"ins":621,"del":454,"n":11},"2026-06-29":{"ins":1049,"del":227,"n":12},"2026-07-06":{"ins":3193,"del":476,"n":30},"2026-07-13":{"ins":5008,"del":444,"n":34},"2026-07-20":{"ins":651,"del":304,"n":16},"2026-07-27":{"ins":174,"del":5900,"n":15},"2026-08-03":{"ins":534,"del":69,"n":5},"2026-08-10":{"ins":3309,"del":2142,"n":25},"2026-08-17":{"ins":4617,"del":367,"n":17},"2026-08-24":{"ins":2432,"del":209,"n":13}},"punch":[[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,1,10,14,16,11,11,21,29,7,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,3,18,16,6,8,12,26,27,7,0,0,2,0,0,0,0],[0,0,0,0,0,0,0,0,4,6,13,14,7,7,18,18,7,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,3,12,13,10,6,9,11,20,6,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,1,0,9,10,12,9,7,14,22,7,0,1,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]],"topTickets":[{"tk":"DMAS-80813","n":60,"ins":9454,"del":2741,"repos":{"oceans-next":44,"onc":16}},{"tk":"DMAS-90877","n":27,"ins":4663,"del":961,"repos":{"oceans-next":27}},{"tk":"DMAS-89994","n":22,"ins":1873,"del":468,"repos":{"oceans-next":18,"onc":4}},{"tk":"DMAS-90083","n":22,"ins":1929,"del":578,"repos":{"oceans-next":11,"onc":11}},{"tk":"DMAS-89264","n":19,"ins":193,"del":118,"repos":{"onc":13,"oceans-next":6}},{"tk":"DMAS-90835","n":19,"ins":1017,"del":94,"repos":{"oceans-next":12,"onc":7}},{"tk":"DMAS-89779","n":12,"ins":1452,"del":1051,"repos":{"oceans-next":9,"onc":3}},{"tk":"DMAS-90903","n":12,"ins":520,"del":256,"repos":{"database":1,"oceans-next":6,"onc":5}},{"tk":"DMAS-90601","n":11,"ins":1302,"del":418,"repos":{"oceans-next":11}},{"tk":"DMAS-90852","n":11,"ins":1673,"del":201,"repos":{"oceans-next":11}},{"tk":"DMAS-90814","n":10,"ins":503,"del":433,"repos":{"oceans-next":10}},{"tk":"DMAS-89252","n":9,"ins":238,"del":234,"repos":{"oceans-next":9}}],"stats":{"commits":521,"work":435,"prMerges":76,"tickets":79,"ins":45272,"del":19335,"activeDays":126,"byRepo":{"oceans-next":337,"onc":128,"database":20,"ui-testing":27,"web-service-testing":9}},"extra":{"monthlyClass":{"2026-01":{"frontend":15,"backend":0,"tests":0,"database":0,"other":0},"2026-02":{"frontend":748,"backend":237,"tests":116,"database":0,"other":0},"2026-03":{"frontend":5244,"backend":53,"tests":2279,"database":109,"other":190},"2026-04":{"frontend":4722,"backend":2602,"tests":5694,"database":0,"other":23},"2026-05":{"frontend":1225,"backend":888,"tests":3118,"database":14,"other":20},"2026-06":{"frontend":1756,"backend":1252,"tests":3329,"database":0,"other":51},"2026-07":{"frontend":8475,"backend":1912,"tests":6577,"database":45,"other":234},"2026-08":{"frontend":3003,"backend":1740,"tests":8668,"database":253,"other":15}},"totalClass":{"frontend":25188,"backend":8684,"tests":29781,"database":421,"other":533},"totalAll":64607,"testShare":46.1,"sizeBins":[{"lab":"1-4","lo":0,"hi":4,"n":79},{"lab":"5-16","lo":5,"hi":16,"n":96},{"lab":"17-64","lo":17,"hi":64,"n":88},{"lab":"65-256","lo":65,"hi":256,"n":93},{"lab":"257-1k","lo":257,"hi":1024,"n":73},{"lab":"1k+","lo":1025,"hi":1000000000,"n":6}],"median":33,"mean":149,"giants":[{"d":"2026-07-29","tk":"DMAS-90975","ins":2,"del":3242},{"d":"2026-07-29","tk":"DMAS-90975","ins":2,"del":1743},{"d":"2026-08-18","tk":"DMAS-91231","ins":1474,"del":2}]}}</script>
+<script>
+const DATA = JSON.parse(document.getElementById('data').textContent);
+const REPOS = ['oceans-next','onc','database','ui-testing','web-service-testing'];
+const REPO_VAR = { 'oceans-next':'--s-oceans','onc':'--s-onc','database':'--s-db','ui-testing':'--s-uit','web-service-testing':'--s-wst' };
+const REPO_SHAPE = { 'oceans-next':'circle','onc':'square','database':'diamond','ui-testing':'triangle','web-service-testing':'plus' };
+const LANES = [
+  { k:'sensorattr', name:'Sensor Attributes rewrite', h:92 },
+  { k:'uom',   name:'Units of Measure',        h:72 },
+  { k:'am',    name:'Attribute Management',    h:96 },
+  { k:'cables',name:'Cables deprecation',      h:42 },
+  { k:'tests', name:'Test suites',             h:50 },
+  { k:'other', name:'Maintenance & the rest',  h:96 },
+];
+const ANNOT = [
+  { d:'2026-01-27', t:'first commit', row:0 },
+  { d:'2026-04-24', t:'attributes CRUD lands', row:1 },
+  { d:'2026-05-12', t:'rewrite fully on main', row:0 },
+  { d:'2026-06-17', t:'NULL attribute values ship', row:1 },
+  { d:'2026-07-08', t:'UoM tab declined; split to own page', row:0 },
+  { d:'2026-07-17', t:'UoM page merged, dark', row:1 },
+  { d:'2026-07-29', t:'Cables removed: −5,000 lines', row:0 },
+  { d:'2026-07-31', t:'UoM goes live', row:1 },
+  { d:'2026-08-18', t:'DTA backend merged', row:0 },
+  { d:'2026-08-25', t:'AM page opens', row:1 },
+];
+const TICKET_LABEL = {
+  'DMAS-90877':'Device Type Attributes section','DMAS-90083':'NULL attribute values via the UI',
+  'DMAS-90835':'Units of Measure standalone page','DMAS-89994':'audit + DOI restoration',
+  'DMAS-80813':'sensor attributes umbrella','DMAS-90903':'Units of Measure create',
+  'DMAS-90601':'Attributes tab','DMAS-90852':'Attribute Management sidebar',
+  'DMAS-90814':'UoM harvest + Attributes tweaks','DMAS-90512':'Selenium suite, sensor attributes',
+  'DMAS-90858':'Device Type Attributes backend','DMAS-91231':'DTST Attributes section',
+  'DMAS-89264':'device workflow Jira-ticket logic','DMAS-89252':'table column-width fixes',
+  'DMAS-89779':'REST-service migration','DMAS-89625':'attributes CRUD dialog',
+  'DMAS-89276':'read-only attributes table','DMAS-89606':'history expansion',
+  'DMAS-89221':'audit table + trigger','DMAS-86249':'File Source edit UI',
+};
+const css = () => getComputedStyle(document.documentElement);
+const C = name => css().getPropertyValue(name).trim();
+const fmt = n => n.toLocaleString('en-US');
+const NS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs, parent) => {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+};
+const T0 = new Date('2026-01-26T00:00:00'), T1 = new Date('2026-08-26T00:00:00');
+const dayNum = iso => (new Date(iso.slice(0,10)+'T12:00:00') - T0) / 864e5;
+const MONTHS = [['2026-02-01','Feb'],['2026-03-01','Mar'],['2026-04-01','Apr'],['2026-05-01','May'],['2026-06-01','June'],['2026-07-01','July'],['2026-08-01','Aug']];
+const TERM2 = '2026-05-01';
+const HOLIDAYS = { '2026-02-16':'Family Day','2026-04-03':'Good Friday','2026-05-18':'Victoria Day','2026-07-01':'Canada Day','2026-08-03':'BC Day' };
+
+// ---------- tooltip ----------
+const tip = document.getElementById('tip');
+function showTip(ev, html) {
+  tip.innerHTML = html; tip.style.display = 'block';
+  const pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = ev.clientX + pad, y = ev.clientY + pad;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - pad;
+  if (y + h > innerHeight - 8) y = ev.clientY - h - pad;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+function hideTip() { tip.style.display = 'none'; }
+
+// ---------- KPI row ----------
+function kpis() {
+  const s = DATA.stats;
+  const box = document.getElementById('kpis'); box.innerHTML = '';
+  const mk = (lab, val, note, hero) => {
+    const d = document.createElement('div');
+    d.className = 'kpi' + (hero ? ' hero' : '');
+    d.innerHTML = `<div class="lab">${lab}</div><div class="val">${val}</div>` + (note ? `<div class="note">${note}</div>` : '');
+    box.appendChild(d);
+  };
+  mk('Commits', fmt(s.commits), `${fmt(s.work)} work &middot; ${fmt(s.prMerges)} PR merges`, true);
+  mk('Tickets', s.tickets, 'distinct DMAS');
+  mk('Repositories', '5', 'frontend to database');
+  mk('Lines added', '+' + fmt(s.ins), 'work commits');
+  mk('Lines removed', '&minus;' + fmt(s.del), 'over 40% of the add volume');
+  mk('Active days', s.activeDays, 'every one a weekday');
+  if (DATA.extra) {
+    mk('Test-code share', DATA.extra.testShare + '%', 'of all lines touched');
+  }
+}
+
+// ---------- monthly composition small multiples ----------
+function classes() {
+  const svg = document.getElementById('classes'); if (!svg || !DATA.extra) return;
+  svg.innerHTML = '';
+  const CL = [
+    ['frontend', 'Frontend (tsx, ts, jsx, js)'],
+    ['tests', 'Test code (specs, suites, .bru, JUnit)'],
+    ['backend', 'Backend Java'],
+    ['database', 'Database SQL'],
+    ['other', 'Everything else (config, templates)'],
+  ];
+  const months = Object.keys(DATA.extra.monthlyClass).sort();
+  const LEFT = 268, TOP = 10, ROWH = 64, BARW = 46, GAPX = 14, W = 1120;
+  const H = TOP + CL.length * ROWH + 28;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
+  let max = 0;
+  for (const m of months) for (const [k] of CL) max = Math.max(max, DATA.extra.monthlyClass[m][k]);
+  CL.forEach(([k, name], ri) => {
+    const y0 = TOP + ri * ROWH, base = y0 + ROWH - 16;
+    const tot = DATA.extra.totalClass[k];
+    const t = el('text', { x: LEFT - 14, y: y0 + ROWH/2 - 8, 'text-anchor': 'end', fill: C('--ink-1'), 'font-size': 12.5, 'font-weight': 600 }, svg);
+    t.textContent = name;
+    const t2 = el('text', { x: LEFT - 14, y: y0 + ROWH/2 + 7, 'text-anchor': 'end', fill: C('--ink-3'), 'font-size': 10.5 }, svg);
+    t2.textContent = fmt(tot) + ' lines · ' + Math.round(tot / DATA.extra.totalAll * 100) + '%';
+    el('line', { x1: LEFT, y1: base, x2: LEFT + months.length * (BARW + GAPX), y2: base, stroke: C('--baseline'), 'stroke-width': 1 }, svg);
+    let peak = ['', 0];
+    for (const m of months) if (DATA.extra.monthlyClass[m][k] > peak[1]) peak = [m, DATA.extra.monthlyClass[m][k]];
+    months.forEach((m, mi) => {
+      const v = DATA.extra.monthlyClass[m][k];
+      const bx = LEFT + mi * (BARW + GAPX);
+      const h = Math.max(v > 0 ? 2 : 0, (base - y0 - 14) * v / max);
+      if (v > 0) {
+        const p = el('path', { d: roundTop(bx, base - h, BARW, h, 3), fill: C('--seq-4') }, svg);
+        p.addEventListener('mousemove', ev => showTip(ev,
+          `<div class="t1">${name.split(' (')[0]} · ${new Date(m + '-15T12:00:00').toLocaleString('en-US', { month: 'long' })}</div>` +
+          `<div class="t2">${fmt(v)} lines touched</div>`));
+        p.addEventListener('mouseleave', hideTip);
+      }
+      if (m === peak[0] && v > 0) {
+        const tv = el('text', { x: bx + BARW/2, y: base - h - 5, 'text-anchor': 'middle', fill: C('--ink-2'), 'font-size': 10, 'font-weight': 600 }, svg);
+        tv.textContent = v >= 1000 ? (v/1000).toFixed(1) + 'k' : v;
+      }
+      if (ri === CL.length - 1) {
+        const tm = el('text', { x: bx + BARW/2, y: H - 8, 'text-anchor': 'middle', fill: C('--ink-3'), 'font-size': 10.5 }, svg);
+        tm.textContent = new Date(m + '-15T12:00:00').toLocaleString('en-US', { month: 'short' });
+      }
+    });
+  });
+}
+
+// ---------- commit size histogram ----------
+function sizesChart() {
+  const svg = document.getElementById('sizes'); if (!svg || !DATA.extra) return;
+  svg.innerHTML = '';
+  const bins = DATA.extra.sizeBins;
+  const LEFT = 40, TOP = 26, W = 640, PH = 164, BARW = 72, GAPX = 22;
+  const H = TOP + PH + 92;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
+  const max = Math.max(...bins.map(b => b.n));
+  const base = TOP + PH;
+  el('line', { x1: LEFT - 6, y1: base, x2: LEFT + bins.length * (BARW + GAPX), y2: base, stroke: C('--baseline'), 'stroke-width': 1 }, svg);
+  bins.forEach((b, i) => {
+    const bx = LEFT + i * (BARW + GAPX);
+    const h = Math.max(2, PH * b.n / max);
+    const p = el('path', { d: roundTop(bx, base - h, BARW, h, 4), fill: C('--seq-4') }, svg);
+    p.addEventListener('mousemove', ev => showTip(ev,
+      `<div class="t1">${b.lab} lines changed</div><div class="t2">${b.n} work commits</div>`));
+    p.addEventListener('mouseleave', hideTip);
+    const tv = el('text', { x: bx + BARW/2, y: base - h - 6, 'text-anchor': 'middle', fill: C('--ink-2'), 'font-size': 11, 'font-weight': 600 }, svg);
+    tv.textContent = b.n;
+    const tl2 = el('text', { x: bx + BARW/2, y: base + 15, 'text-anchor': 'middle', fill: C('--ink-3'), 'font-size': 10.5 }, svg);
+    tl2.textContent = b.lab;
+  });
+  const note = el('text', { x: LEFT, y: base + 38, fill: C('--ink-2'), 'font-size': 11.5 }, svg);
+  note.textContent = `median ${DATA.extra.median} lines · mean ${DATA.extra.mean} (the giants pull it)`;
+  DATA.extra.giants.forEach((g, i) => {
+    const t = el('text', { x: LEFT, y: base + 56 + i * 15, fill: C('--ink-3'), 'font-size': 10.5 }, svg);
+    t.textContent = `${g.d} · ${g.tk} · +${fmt(g.ins)}/−${fmt(g.del)} · ${g.s.slice(0, 70)}`;
+  });
+}
+
+// ---------- shapes ----------
+function drawMark(g, shape, x, y, r, fill, hollow) {
+  const common = hollow
+    ? { fill: C('--surface-1'), stroke: fill, 'stroke-width': 2 }
+    : { fill, stroke: C('--surface-1'), 'stroke-width': 1.5 };
+  if (shape === 'circle') return el('circle', { cx:x, cy:y, r, ...common }, g);
+  if (shape === 'square') { const s = r*1.72; return el('rect', { x:x-s/2, y:y-s/2, width:s, height:s, rx:1.5, ...common }, g); }
+  if (shape === 'diamond') { const s = r*1.25; return el('path', { d:`M ${x} ${y-s*1.2} L ${x+s} ${y} L ${x} ${y+s*1.2} L ${x-s} ${y} Z`, ...common }, g); }
+  if (shape === 'triangle') { const s = r*1.5; return el('path', { d:`M ${x} ${y-s} L ${x+s*0.95} ${y+s*0.75} L ${x-s*0.95} ${y+s*0.75} Z`, 'stroke-linejoin':'round', ...common }, g); }
+  // plus
+  const a = r*0.62, b = r*1.55;
+  return el('path', { d:`M ${x-a} ${y-b} H ${x+a} V ${y-a} H ${x+b} V ${y+a} H ${x+a} V ${y+b} H ${x-a} V ${y+a} H ${x-b} V ${y-a} H ${x-a} Z`, 'stroke-linejoin':'round', ...common }, g);
+}
+function legendSwatch(shape, colorVar) {
+  const s = document.createElementNS(NS, 'svg');
+  s.setAttribute('width', 16); s.setAttribute('height', 16); s.setAttribute('viewBox', '0 0 16 16');
+  drawMark(s, shape, 8, 8, 4.6, C(colorVar), false);
+  return s;
+}
+function legend() {
+  const lg = document.getElementById('legend'); lg.innerHTML = '';
+  for (const r of REPOS) {
+    const it = document.createElement('span'); it.className = 'it';
+    it.appendChild(legendSwatch(REPO_SHAPE[r], REPO_VAR[r]));
+    it.appendChild(document.createTextNode(r + ` (${DATA.stats.byRepo[r] || 0})`));
+    lg.appendChild(it);
+  }
+  const it = document.createElement('span'); it.className = 'it';
+  const s = document.createElementNS(NS, 'svg');
+  s.setAttribute('width', 16); s.setAttribute('height', 16); s.setAttribute('viewBox', '0 0 16 16');
+  drawMark(s, 'circle', 8, 8, 4.6, C('--ink-3'), true);
+  it.appendChild(s); it.appendChild(document.createTextNode('hollow = PR merge'));
+  lg.appendChild(it);
+}
+
+// deterministic per-commit jitter from the hash
+function jitter(h) {
+  let a = 0; for (let i = 0; i < h.length; i++) a = (a * 31 + h.charCodeAt(i)) >>> 0;
+  return (a % 1000) / 1000 - 0.5;
+}
+
+// ---------- timeline ----------
+function timeline() {
+  const svg = document.getElementById('timeline'); svg.innerHTML = '';
+  const W = 1660, LEFT = 158, RIGHT = 110, TOPA = 96;
+  const plotW = W - LEFT - RIGHT;
+  const laneGap = 10;
+  let y = TOPA + 18;
+  const lanePos = {};
+  for (const l of LANES) { lanePos[l.k] = { y0: y, y1: y + l.h }; y += l.h + laneGap; }
+  const H = y + 34;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('width', W); svg.setAttribute('height', H);
+  const x = iso => LEFT + dayNum(iso) / ((T1 - T0)/864e5) * plotW;
+
+  // lane bands + labels
+  for (const l of LANES) {
+    const p = lanePos[l.k];
+    el('rect', { x: LEFT, y: p.y0, width: plotW, height: p.y1 - p.y0, fill: C('--page'), rx: 6 }, svg);
+    const t = el('text', { x: LEFT - 12, y: (p.y0 + p.y1)/2 + 1, 'text-anchor':'end', fill: C('--ink-2'), 'font-size': 12.5, 'font-weight': 600 }, svg);
+    t.textContent = l.name;
+    const n = el('text', { x: LEFT - 12, y: (p.y0 + p.y1)/2 + 15, 'text-anchor':'end', fill: C('--ink-3'), 'font-size': 10.5 }, svg);
+    n.textContent = DATA.commits.filter(c => c.lane === l.k).length + ' commits';
+  }
+  // month gridlines + labels; the term boundary rides the May line
+  for (const [iso, name] of MONTHS) {
+    const gx = x(iso);
+    const isTerm = iso === TERM2;
+    el('line', { x1: gx, y1: TOPA + 10, x2: gx, y2: H - 26, stroke: isTerm ? C('--baseline') : C('--grid'), 'stroke-width': isTerm ? 1.5 : 1 }, svg);
+    const t = el('text', { x: gx + 5, y: H - 10, fill: C('--ink-3'), 'font-size': 11, 'font-weight': isTerm ? 650 : 400 }, svg);
+    t.textContent = isTerm ? 'May &middot; Term 2 begins'.replace('&middot;', '·') : name;
+  }
+  // annotations: measured labels, greedy row packing (no overlaps by construction)
+  const ROWH = 19, NROWS = 4;
+  const rowEnds = new Array(NROWS).fill(-1e9);
+  for (const a of [...ANNOT].sort((p, q) => p.d < q.d ? -1 : 1)) {
+    const ax = x(a.d);
+    const probe = el('text', { x: 0, y: -60, 'font-size': 10.5 }, svg);
+    probe.textContent = a.t;
+    const tw = probe.getBBox().width; svg.removeChild(probe);
+    const anchorEnd = ax + tw + 10 > W - 6;
+    const x0 = anchorEnd ? ax - tw - 7 : ax - 3;
+    const x1 = anchorEnd ? ax + 3 : ax + tw + 7;
+    let row = 0;
+    while (row < NROWS - 1 && x0 < rowEnds[row] + 14) row++;
+    rowEnds[row] = Math.max(rowEnds[row], x1);
+    const ay = 10 + row * ROWH;
+    el('line', { x1: ax, y1: ay + 5, x2: ax, y2: H - 26, stroke: C('--baseline'), 'stroke-width': 1 }, svg);
+    el('circle', { cx: ax, cy: ay + 3, r: 2.4, fill: C('--ink-2') }, svg);
+    const t = el('text', { x: ax + (anchorEnd ? -7 : 7), y: ay + 7, fill: C('--ink-2'), 'font-size': 10.5, 'text-anchor': anchorEnd ? 'end' : 'start' }, svg);
+    t.textContent = a.t;
+  }
+  // dots
+  const sorted = [...DATA.commits].sort((a,b) => (b.ins + b.del) - (a.ins + a.del));
+  for (const c of sorted) {
+    const p = lanePos[c.lane];
+    const cx = x(c.ld || c.d);
+    const pad = 13;
+    const cy = (p.y0 + p.y1)/2 + jitter(c.h) * (p.y1 - p.y0 - pad*2);
+    const r = Math.max(3, Math.min(8.5, 2.4 + Math.log2(1 + c.ins + c.del) * 0.62));
+    const m = drawMark(svg, REPO_SHAPE[c.repo], cx, cy, r, C(REPO_VAR[c.repo]), c.pr);
+    m.style.cursor = 'default';
+    m.addEventListener('mousemove', ev => showTip(ev,
+      `<div class="t1">${c.tk || '(no ticket)'} &middot; ${c.repo}</div>` +
+      `<div class="t2">${c.ld || c.d.slice(0,10)} &middot; +${fmt(c.ins)} / &minus;${fmt(c.del)} &middot; ${c.f} files${c.pr ? ' &middot; PR merge' : ''}</div>` +
+      `<div class="t2">${c.s.replace(/</g,'&lt;')}</div>`));
+    m.addEventListener('mouseleave', hideTip);
+  }
+}
+
+// ---------- calendar ----------
+function calendar() {
+  const svg = document.getElementById('calendar'); svg.innerHTML = '';
+  const CELL = 17, GAP = 3, LEFT = 44, TOP = 26;
+  const w0 = new Date('2026-01-26T12:00:00');
+  const weeks = 31;
+  const W = LEFT + weeks * (CELL + GAP) + 10, H = TOP + 7 * (CELL + GAP) + 30;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
+  const seq = n => n === 0 ? null : n <= 1 ? C('--seq-1') : n <= 2 ? C('--seq-2') : n <= 4 ? C('--seq-3') : n <= 7 ? C('--seq-4') : n <= 11 ? C('--seq-5') : C('--seq-6');
+  const dows = ['Mon','','Wed','','Fri','','Sun'];
+  dows.forEach((d, i) => {
+    if (!d) return;
+    const t = el('text', { x: LEFT - 8, y: TOP + i*(CELL+GAP) + CELL - 4, 'text-anchor':'end', fill: C('--ink-3'), 'font-size': 10.5 }, svg);
+    t.textContent = d;
+  });
+  let lastMonth = '';
+  for (let wk = 0; wk < weeks; wk++) {
+    for (let dw = 0; dw < 7; dw++) {
+      const d = new Date(w0); d.setDate(d.getDate() + wk*7 + dw);
+      const iso = d.toISOString().slice(0,10);
+      if (iso < '2026-01-27' || iso > '2026-08-25') continue;
+      const mon = iso.slice(0,7);
+      if (dw === 0 && mon !== lastMonth) {
+        lastMonth = mon;
+        const t = el('text', { x: LEFT + wk*(CELL+GAP), y: TOP - 8, fill: C('--ink-3'), 'font-size': 10.5 }, svg);
+        t.textContent = new Date(iso + 'T12:00:00').toLocaleString('en-US', { month: 'short' });
+      }
+      const day = DATA.daily[iso];
+      const n = day ? day.n : 0;
+      const fill = seq(n);
+      const r = el('rect', {
+        x: LEFT + wk*(CELL+GAP), y: TOP + dw*(CELL+GAP), width: CELL, height: CELL, rx: 3.5,
+        fill: fill || C('--surface-1'), stroke: fill ? 'none' : C('--grid'), 'stroke-width': 1,
+      }, svg);
+      const label = new Date(iso+'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+      r.addEventListener('mousemove', ev => showTip(ev,
+        `<div class="t1">${label}</div>` +
+        `<div class="t2">${n} commit${n===1?'':'s'}${day ? ` &middot; +${fmt(day.ins)} / &minus;${fmt(day.del)}` : ''}${HOLIDAYS[iso] ? ' &middot; ' + HOLIDAYS[iso] : ''}</div>`));
+      r.addEventListener('mouseleave', hideTip);
+    }
+  }
+  // scale legend
+  const lx = LEFT, ly = TOP + 7*(CELL+GAP) + 8;
+  const steps = [['0', null],['1','--seq-1'],['2','--seq-2'],['3-4','--seq-3'],['5-7','--seq-4'],['8-11','--seq-5'],['12+','--seq-6']];
+  let sx = lx;
+  const lt = el('text', { x: sx, y: ly + 10, fill: C('--ink-3'), 'font-size': 10.5 }, svg);
+  lt.textContent = 'commits/day'; sx += 78;
+  for (const [lab, v] of steps) {
+    el('rect', { x: sx, y: ly, width: 13, height: 13, rx: 3, fill: v ? C(v) : C('--surface-1'), stroke: v ? 'none' : C('--grid'), 'stroke-width': 1 }, svg);
+    const t = el('text', { x: sx + 16, y: ly + 10, fill: C('--ink-3'), 'font-size': 10 }, svg);
+    t.textContent = lab;
+    sx += 16 + lab.length * 6 + 14;
+  }
+}
+
+// ---------- ledger ----------
+function ledger() {
+  const svg = document.getElementById('ledger'); svg.innerHTML = '';
+  const weeks = Object.entries(DATA.weekly).sort((a,b) => a[0] < b[0] ? -1 : 1);
+  const LEFT = 58, TOP = 18, H2 = 132, W = 1120, BOT = 40;
+  const H = TOP + H2*2 + BOT;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
+  const max = 6000;
+  const slot = (W - LEFT - 16) / weeks.length;
+  const bw = Math.min(24, slot - 8);
+  const y0 = TOP + H2;
+  const yy = v => H2 * Math.min(1, v / max);
+  for (const tick of [0, 2000, 4000, 6000]) {
+    for (const sgn of [1, -1]) {
+      if (tick === 0 && sgn === -1) continue;
+      const gy = y0 - sgn * H2 * tick / max;
+      el('line', { x1: LEFT, y1: gy, x2: W - 10, y2: gy, stroke: tick === 0 ? C('--baseline') : C('--grid'), 'stroke-width': 1 }, svg);
+      const t = el('text', { x: LEFT - 8, y: gy + 3.5, 'text-anchor': 'end', fill: C('--ink-3'), 'font-size': 10.5 }, svg);
+      t.textContent = tick === 0 ? '0' : (sgn > 0 ? '+' : '−') + (tick/1000) + 'k';
+    }
+  }
+  let maxIns = ['', 0], maxDel = ['', 0]; let i = 0;
+  for (const [wk, v] of weeks) {
+    if (v.ins > maxIns[1]) maxIns = [wk, v.ins];
+    if (v.del > maxDel[1]) maxDel = [wk, v.del];
+  }
+  for (const [wk, v] of weeks) {
+    const bx = LEFT + i * slot + (slot - bw)/2;
+    const hIns = yy(v.ins), hDel = yy(v.del);
+    const wkLab = new Date(wk+'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' });
+    if (v.ins > 0) {
+      const p = el('path', { d: roundTop(bx, y0 - 1 - hIns, bw, hIns, 4), fill: C('--div-pos') }, svg);
+      hook(p, wkLab, v);
+    }
+    if (v.del > 0) {
+      const p = el('path', { d: roundBot(bx, y0 + 1, bw, hDel, 4), fill: C('--div-neg') }, svg);
+      hook(p, wkLab, v);
+    }
+    if (wk === maxIns[0]) {
+      const t = el('text', { x: bx + bw/2, y: y0 - hIns - 7, 'text-anchor':'middle', fill: C('--ink-2'), 'font-size': 10.5, 'font-weight': 600 }, svg);
+      t.textContent = '+' + fmt(v.ins);
+    }
+    if (wk === maxDel[0]) {
+      const t = el('text', { x: bx + bw/2, y: y0 + hDel + 15, 'text-anchor':'middle', fill: C('--ink-2'), 'font-size': 10.5, 'font-weight': 600 }, svg);
+      t.textContent = '−' + fmt(v.del) + '  (Cables retired)';
+    }
+    if (i % 2 === 0) {
+      const t = el('text', { x: bx + bw/2, y: H - 8, 'text-anchor':'middle', fill: C('--ink-3'), 'font-size': 10 }, svg);
+      t.textContent = wkLab;
+    }
+    i++;
+  }
+  function hook(p, wkLab, v) {
+    p.addEventListener('mousemove', ev => showTip(ev,
+      `<div class="t1">week of ${wkLab}</div>` +
+      `<div class="t2">+${fmt(v.ins)} / −${fmt(v.del)} lines &middot; ${v.n} work commits</div>`));
+    p.addEventListener('mouseleave', hideTip);
+  }
+}
+function roundTop(x, y, w, h, r) {
+  r = Math.min(r, h, w/2);
+  return `M ${x} ${y+h} V ${y+r} Q ${x} ${y} ${x+r} ${y} H ${x+w-r} Q ${x+w} ${y} ${x+w} ${y+r} V ${y+h} Z`;
+}
+function roundBot(x, y, w, h, r) {
+  r = Math.min(r, h, w/2);
+  return `M ${x} ${y} H ${x+w} V ${y+h-r} Q ${x+w} ${y+h} ${x+w-r} ${y+h} H ${x+r} Q ${x} ${y+h} ${x} ${y+h-r} Z`;
+}
+
+// ---------- punchcard ----------
+function punch() {
+  const svg = document.getElementById('punch'); svg.innerHTML = '';
+  const hours = []; for (let h = 7; h <= 19; h++) hours.push(h);
+  const rows = [1,2,3,4,5]; // Mon..Fri
+  const names = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const CELL = 30, GAP = 3, LEFT = 46, TOP = 8;
+  const W = LEFT + hours.length * (CELL + GAP) + 10, H = TOP + rows.length * (CELL + GAP) + 34;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
+  let max = 0; rows.forEach(d => hours.forEach(h => max = Math.max(max, DATA.punch[d][h])));
+  const seq = n => n === 0 ? null : n <= 2 ? C('--seq-1') : n <= 5 ? C('--seq-2') : n <= 10 ? C('--seq-3') : n <= 18 ? C('--seq-4') : n <= 28 ? C('--seq-5') : C('--seq-6');
+  rows.forEach((d, ri) => {
+    const t = el('text', { x: LEFT - 8, y: TOP + ri*(CELL+GAP) + CELL/2 + 4, 'text-anchor':'end', fill: C('--ink-3'), 'font-size': 11 }, svg);
+    t.textContent = names[d];
+    hours.forEach((h, hi) => {
+      const n = DATA.punch[d][h];
+      const fill = seq(n);
+      const r = el('rect', {
+        x: LEFT + hi*(CELL+GAP), y: TOP + ri*(CELL+GAP), width: CELL, height: CELL, rx: 5,
+        fill: fill || C('--surface-1'), stroke: fill ? 'none' : C('--grid'), 'stroke-width': 1,
+      }, svg);
+      r.addEventListener('mousemove', ev => showTip(ev,
+        `<div class="t1">${names[d]} ${h}:00 to ${h+1}:00</div><div class="t2">${n} commit${n===1?'':'s'} across the co-op</div>`));
+      r.addEventListener('mouseleave', hideTip);
+      if (n === max) {
+        const t2 = el('text', { x: LEFT + hi*(CELL+GAP) + CELL/2, y: TOP + ri*(CELL+GAP) + CELL/2 + 4, 'text-anchor':'middle', fill: '#ffffff', 'font-size': 11, 'font-weight': 650 }, svg);
+        t2.textContent = n;
+      }
+    });
+  });
+  hours.forEach((h, hi) => {
+    if (h % 2) return;
+    const t = el('text', { x: LEFT + hi*(CELL+GAP) + CELL/2, y: H - 12, 'text-anchor':'middle', fill: C('--ink-3'), 'font-size': 10.5 }, svg);
+    t.textContent = h + 'h';
+  });
+}
+
+// ---------- top tickets ----------
+function tickets() {
+  const svg = document.getElementById('tickets'); svg.innerHTML = '';
+  const list = DATA.topTickets;
+  const LEFT = 320, TOP = 6, BH = 20, GAP2 = 12, W = 1120;
+  const H = TOP + list.length * (BH + GAP2) + 8;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
+  const max = Math.max(...list.map(t => t.n));
+  const plotW = W - LEFT - 70;
+  list.forEach((t, i) => {
+    const y = TOP + i * (BH + GAP2);
+    const lab = el('text', { x: LEFT - 12, y: y + BH/2 + 4, 'text-anchor':'end', fill: C('--ink-1'), 'font-size': 12 }, svg);
+    const short = TICKET_LABEL[t.tk] || '';
+    lab.innerHTML = `<tspan font-weight="600">${t.tk.replace('DMAS-','')}</tspan>` + (short ? `<tspan fill="${C('--ink-3')}">&#160;&#160;${short}</tspan>` : '');
+    let x = LEFT;
+    const total = t.n;
+    REPOS.forEach(r => {
+      const n = t.repos[r] || 0;
+      if (!n) return;
+      const w = n / max * plotW;
+      const isLast = x + w >= LEFT + total / max * plotW - 0.5;
+      const seg = isLast
+        ? el('path', { d: roundRight(x, y, Math.max(w - 2, 2), BH, 4), fill: C(REPO_VAR[r]) }, svg)
+        : el('rect', { x, y, width: Math.max(w - 2, 2), height: BH, fill: C(REPO_VAR[r]) }, svg);
+      seg.addEventListener('mousemove', ev => showTip(ev,
+        `<div class="t1">${t.tk} &middot; ${r}</div><div class="t2">${n} of ${total} commits &middot; ticket total +${fmt(t.ins)} / −${fmt(t.del)}</div>`));
+      seg.addEventListener('mouseleave', hideTip);
+      x += w;
+    });
+    const v = el('text', { x: LEFT + total/max*plotW + 8, y: y + BH/2 + 4, fill: C('--ink-2'), 'font-size': 11.5, 'font-weight': 600 }, svg);
+    v.textContent = total;
+  });
+}
+function roundRight(x, y, w, h, r) {
+  r = Math.min(r, w, h/2);
+  return `M ${x} ${y} H ${x+w-r} Q ${x+w} ${y} ${x+w} ${y+r} V ${y+h-r} Q ${x+w} ${y+h} ${x+w-r} ${y+h} H ${x} Z`;
+}
+
+// ---------- table ----------
+function table() {
+  const tbl = document.getElementById('tbl');
+  const rows = [...DATA.commits].sort((a,b) => (b.ld||b.d) < (a.ld||a.d) ? -1 : 1);
+  let html = '<tr><th>Date</th><th>Repo</th><th>Ticket</th><th>Subject</th><th class="num">+</th><th class="num">&minus;</th></tr>';
+  for (const c of rows) {
+    html += `<tr><td>${c.ld || c.d.slice(0,10)}</td><td>${c.repo}</td><td>${c.tk}</td><td>${c.s.replace(/</g,'&lt;')}</td><td class="num">${fmt(c.ins)}</td><td class="num">${fmt(c.del)}</td></tr>`;
+  }
+  tbl.innerHTML = html;
+}
+
+function foot() {
+  document.getElementById('foot').textContent =
+    'Method: git log --all across every local clone of the five repositories, author ' +
+    'one author identity only, deduplicated by commit hash; author dates throughout; ' +
+    'window Jan 27 to Aug 25, 2026, both work terms. Dot size is log-scaled lines changed. ' +
+    'Every merge followed a reviewer approval; merges executed by reviewers are absent from this author-filtered data. Line counts include generated files where commits touched them. Generated 2026-08-25 ' +
+    'alongside the full history export in this folder; palette validated for color-vision ' +
+    'safety in both themes.';
+}
+
+function drawAll() { kpis(); legend(); timeline(); calendar(); ledger(); classes(); punch(); sizesChart(); tickets(); foot(); }
+drawAll(); table();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', drawAll);
+</script>
+</body>
+</html>
