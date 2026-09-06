@@ -843,6 +843,7 @@ function foot() {
 
 function diag(where, err) {
   console.error(where, err);
+  if (location.protocol !== 'file:') return;
   let d = document.getElementById('diag');
   if (!d) { d = document.createElement('p'); d.id = 'diag'; d.className = 'diag'; document.querySelector('.wrap').appendChild(d); }
   const line = document.createElement('span');
