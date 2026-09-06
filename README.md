@@ -1,5 +1,5 @@
 # ethanjames-prgm.github.io
 
-Personal site. Pages are self-contained HTML, one folder each.
+My personal site. The pages are self-contained HTML, one folder each.
 
-- `coop-in-commits/`: a visualization of a 2026 co-op's commit history at Ocean Networks Canada. The counting rules are stated on the page.
+- `coop-in-commits/`: A visualization of the commit history of my 2026 co-op with Ocean Networks Canada.
