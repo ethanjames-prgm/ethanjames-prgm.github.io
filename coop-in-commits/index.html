@@ -150,6 +150,11 @@
     .kpis { animation-delay: 0.1s; }
     section:nth-of-type(1) { animation-delay: 0.16s; }
   }
+  @media print {
+    .mark, #calendar rect { opacity: 1 !important; transition: none !important; }
+    .toc, .theme { display: none; }
+    .card, .kpi { box-shadow: none; break-inside: avoid; }
+  }
   @media (max-width: 640px) {
     body { padding: 36px 16px 72px; }
     .wrap { padding-top: 44px; }
@@ -223,11 +228,6 @@
     Ticket numbers are from the DMAS (Data Management and Archival System) Jira project.</p>
     <div class="card"><div class="scroll"><svg id="tickets"></svg></div></div>
   </section>
-
-  <details>
-    <summary>All commits in reverse chronological order</summary>
-    <div class="scroll" style="max-height:480px; overflow-y:auto;"><table id="tbl"></table></div>
-  </details>
 
   <div class="foot" id="foot"></div>
 </div>
@@ -325,7 +325,7 @@ function reveal(svg, nodes, delayOf) {
   whenInView(svg, () => {
     nodes.forEach(o => { o.style.transition = 'opacity 0.4s'; o.style.transitionDelay = delayOf(o) + 'ms'; o.style.opacity = 1; });
     setTimeout(() => nodes.forEach(o => { o.style.transition = ''; o.style.transitionDelay = ''; }), 2600);
-  }, 8000);
+  }, 1000);
 }
 let counted = false;
 function countUp() {
@@ -608,7 +608,7 @@ function timeline() {
     m.addEventListener('mousemove', ev => showTip(ev,
       `<div class="t1">${c.tk || '(no ticket)'} &middot; ${c.repo}</div>` +
       `<div class="t2">${c.ld || c.d.slice(0,10)} &middot; +${fmt(c.ins)} / &minus;${fmt(c.del)} &middot; ${c.f} files${c.pr ? ' &middot; pull-request merge' : ''}</div>` +
-      `<div class="t2">${c.s.replace(/</g,'&lt;')}</div>`));
+      (TICKET_LABEL[c.tk] ? `<div class="t2">${TICKET_LABEL[c.tk]}</div>` : '')));
     m.addEventListener('mouseleave', hideTip);
   }
   reveal(svg, marks, o => dayNum(o.dataset.d) / 211 * 1600);
@@ -818,18 +818,6 @@ function roundRight(x, y, w, h, r) {
   return `M ${x} ${y} H ${x+w-r} Q ${x+w} ${y} ${x+w} ${y+r} V ${y+h-r} Q ${x+w} ${y+h} ${x+w-r} ${y+h} H ${x} Z`;
 }
 
-// ---------- table ----------
-function table() {
-  const tbl = document.getElementById('tbl');
-  const rows = [...DATA.commits].sort((a,b) => (b.ld||b.d) < (a.ld||a.d) ? -1 : 1);
-  let html = '<tr><th>Date</th><th>Repository</th><th>Ticket</th><th>Type</th><th>Subject</th><th class="num">+</th><th class="num">&minus;</th></tr>';
-  for (const c of rows) {
-    const kind = c.pr ? 'pull-request merge' : c.stash ? 'work-in-progress snapshot' : 'work';
-    html += `<tr><td>${c.ld || c.d.slice(0,10)}</td><td>${c.repo}</td><td>${c.tk || 'none'}</td><td>${kind}</td><td>${c.s.replace(/</g,'&lt;')}</td><td class="num">${fmt(c.ins)}</td><td class="num">${fmt(c.del)}</td></tr>`;
-  }
-  tbl.innerHTML = html;
-}
-
 function foot() {
   document.getElementById('foot').innerHTML =
     '<p>Method: git log --all across every local clone of the five repositories, restricted to commits under one author identity and deduplicated by commit hash. ' +
@@ -873,7 +861,6 @@ document.getElementById('theme').addEventListener('click', () => {
 });
 applyTheme();
 drawAll();
-try { table(); } catch (err) { diag('table', err); }
 try { toc(); } catch (err) { diag('toc', err); }
 if (ready) countUp(); else document.fonts.ready.then(() => { ready = true; drawAll(); countUp(); });
 document.addEventListener('pointerdown', ev => {
